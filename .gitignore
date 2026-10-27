@@ -1,0 +1,11 @@
+.build/
+.DS_Store
+dist/
+.swiftpm/
+*.xcuserstate
+.qa/
+.debug-journal.md
+.omo/
+.omd/
+generated-images/
+*.log

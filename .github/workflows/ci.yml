@@ -1,0 +1,23 @@
+name: macOS checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Test
+        run: swift test
+      - name: Native text editor regression
+        run: swift run Tavi --check-editor
+      - name: Build local app
+        run: bash scripts/build.sh
+      - name: Benchmark core
+        run: dist/Tavi.app/Contents/MacOS/Tavi --benchmark

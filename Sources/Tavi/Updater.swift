@@ -1,0 +1,112 @@
+import AppKit
+import CryptoKit
+import OSLog
+import TaviCore
+
+/// Updates Tavi from the GitHub repository's latest release without any window.
+/// The input method checks once at launch and then daily; the app replaces itself,
+/// relaunches, and the relaunched app updates the input-method component.
+enum Updater {
+    static let backgroundArgument = "--update"
+    /// Posted by the input method when the app is already running.
+    static let available = Notification.Name("dev.3xhaust.tavi.update-available")
+    private static let log = Logger(subsystem: "dev.3xhaust.tavi", category: "update")
+
+    private enum Failure: Error {
+        case download, checksum, archive, bundle, signature
+    }
+
+    static var currentVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
+    }
+
+    static func latest() async -> UpdateRelease? {
+        guard let repository = Bundle.main.object(forInfoDictionaryKey: "TaviUpdateRepository") as? String,
+              let url = URL(string: "https://api.github.com/repos/\(repository)/releases/latest") else { return nil }
+        var request = URLRequest(url: url, timeoutInterval: 30)
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        return UpdateRelease.parse(data)
+    }
+
+    // MARK: Input method
+
+    /// Hands a newer release to the app: a running app is told, otherwise it is opened
+    /// in the background.
+    static func checkFromInputMethod() async {
+        guard let release = await latest(), release.isNewer(than: currentVersion) else { return }
+        log.notice("release \(release.version, privacy: .public) is newer than \(currentVersion, privacy: .public)")
+        if !NSRunningApplication.runningApplications(withBundleIdentifier: InputSourceSetup.applicationID).isEmpty {
+            DistributedNotificationCenter.default().postNotificationName(available, object: nil, deliverImmediately: true)
+            return
+        }
+        guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: InputSourceSetup.applicationID) else { return }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = false
+        configuration.arguments = [backgroundArgument]
+        _ = try? await NSWorkspace.shared.openApplication(at: app, configuration: configuration)
+    }
+
+    // MARK: App
+
+    /// Replaces this app with the newer release and relaunches it. Returns false when
+    /// there is nothing to do or the update could not be applied.
+    @MainActor
+    static func replaceAppIfNewer(background: Bool) async -> Bool {
+        let app = Bundle.main.bundleURL
+        guard InputMethodPackage.isApplicationLocation(app),
+              let release = await latest(), release.isNewer(than: currentVersion) else { return false }
+        do {
+            let downloaded = try await download(release)
+            _ = try FileManager.default.replaceItemAt(app, withItemAt: downloaded)
+            try? FileManager.default.removeItem(at: downloaded.deletingLastPathComponent())
+        } catch {
+            log.error("update to \(release.version, privacy: .public) failed: \(String(describing: error), privacy: .public)")
+            return false
+        }
+        log.notice("updated app to \(release.version, privacy: .public)")
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.createsNewApplicationInstance = true
+        configuration.activates = !background
+        configuration.arguments = background ? [backgroundArgument] : []
+        _ = try? await NSWorkspace.shared.openApplication(at: app, configuration: configuration)
+        return true
+    }
+
+    /// Downloads, checks and unpacks the release; returns the new Tavi.app.
+    private static func download(_ release: UpdateRelease) async throws -> URL {
+        let (file, response) = try await URLSession.shared.download(from: release.archive)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw Failure.download }
+        return try unpack(file, as: release)
+    }
+
+    static func unpack(_ file: URL, as release: UpdateRelease) throws -> URL {
+        if let expected = release.sha256 {
+            let digest = SHA256.hash(data: try Data(contentsOf: file, options: .mappedIfSafe))
+            guard digest.map({ String(format: "%02x", $0) }).joined() == expected else { throw Failure.checksum }
+        }
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("Tavi-update-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        guard try run("/usr/bin/ditto", ["-x", "-k", file.path, folder.path]) else { throw Failure.archive }
+        let app = folder.appendingPathComponent("Tavi.app")
+        let info = Bundle(url: app)?.infoDictionary
+        guard info?["CFBundleIdentifier"] as? String == InputSourceSetup.applicationID,
+              info?["CFBundleShortVersionString"] as? String == release.version,
+              (try? InputMethodPackage.version(at: app.appendingPathComponent("Contents/Helpers/TaviInputMethod.app")))?
+                .release == release.version else { throw Failure.bundle }
+        guard try run("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path]) else { throw Failure.signature }
+        return app
+    }
+
+    private static func run(_ tool: String, _ arguments: [String]) throws -> Bool {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: tool)
+        process.arguments = arguments
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        return process.terminationStatus == 0
+    }
+}
