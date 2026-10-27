@@ -83,17 +83,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// A newer release replaces the app first, since the component is copied out of it;
-    /// the relaunched app then updates the component.
-    private func updateApp() {
+    /// the relaunched app then updates the component. Without automatic updates only the
+    /// Settings button checks.
+    private func updateApp(manual: Bool = false) {
+        guard manual || Updater.automatic else {
+            updateComponentQuietly()
+            if background, !updatingQuietly { NSApp.terminate(nil) }
+            return
+        }
         guard !updatingApp else { return }
         updatingApp = true
+        if manual { preferences?.refreshUpdate("확인하는 중…", busy: true) }
         Task {
             let quiet = background || preferences?.window?.isVisible != true
-            if await Updater.replaceAppIfNewer(background: quiet) {
+            let outcome = await Updater.replaceAppIfNewer(background: quiet) { version in
+                if manual { self.preferences?.refreshUpdate("\(version)로 업데이트하는 중…", busy: true) }
+            }
+            if case .installed = outcome {
                 NSApp.terminate(nil)
                 return
             }
             updatingApp = false
+            if manual {
+                switch outcome {
+                case .current: preferences?.refreshUpdate("최신 버전이에요.", busy: false)
+                case .unreachable: preferences?.refreshUpdate("업데이트를 확인하지 못했어요. 인터넷 연결을 확인해 주세요.", busy: false)
+                default: preferences?.refreshUpdate("업데이트하지 못했어요. 잠시 후 다시 시도해 주세요.", busy: false)
+                }
+            }
             updateComponentQuietly()
             if background, !updatingQuietly { NSApp.terminate(nil) }
         }
@@ -208,6 +225,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 onEnabled: { [weak self] in self?.runtime.enabled = $0 },
                 onLearning: { [weak self] in self?.runtime.learning = $0 },
                 onInputSettings: { InputSourceSetup.openSettings() },
+                onCheckUpdates: { [weak self] in self?.updateApp(manual: true) },
                 onStart: { [weak self] in self?.startSetup() },
                 onOpenApplications: { [weak self] in self?.openApplications() },
                 onRemoveInputMethod: { [weak self] in self?.removeInputMethod() }

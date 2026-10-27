@@ -42,6 +42,7 @@ final class PreferencesWindow: NSWindowController, NSTableViewDataSource, NSTabl
     private let onEnabled: (Bool) -> Void
     private let onLearning: (Bool) -> Void
     private let onInputSettings: () -> Void
+    private let onCheckUpdates: () -> Void
     private let onRemoveInputMethod: () -> Void
 
     private let mainView = NSView()
@@ -71,6 +72,10 @@ final class PreferencesWindow: NSWindowController, NSTableViewDataSource, NSTabl
     private let enabledSwitch = NSSwitch()
     private let learningSwitch = NSSwitch()
     private let inputStatusLabel = NSTextField(wrappingLabelWithString: "")
+    private let automaticUpdatesSwitch = NSSwitch()
+    private let updateButton = NSButton()
+    private let updateProgress = NSProgressIndicator()
+    private let updateStatusLabel = NSTextField(wrappingLabelWithString: "")
     private let setupView: InputMethodSetupView
     private(set) var isShowingSetup = false
 
@@ -79,6 +84,7 @@ final class PreferencesWindow: NSWindowController, NSTableViewDataSource, NSTabl
         onEnabled: @escaping (Bool) -> Void,
         onLearning: @escaping (Bool) -> Void,
         onInputSettings: @escaping () -> Void,
+        onCheckUpdates: @escaping () -> Void,
         onStart: @escaping () -> Void,
         onOpenApplications: @escaping () -> Void,
         onRemoveInputMethod: @escaping () -> Void
@@ -87,6 +93,7 @@ final class PreferencesWindow: NSWindowController, NSTableViewDataSource, NSTabl
         self.onEnabled = onEnabled
         self.onLearning = onLearning
         self.onInputSettings = onInputSettings
+        self.onCheckUpdates = onCheckUpdates
         self.onRemoveInputMethod = onRemoveInputMethod
         setupView = InputMethodSetupView(onStart: onStart, onOpenApplications: onOpenApplications)
 
@@ -153,6 +160,10 @@ final class PreferencesWindow: NSWindowController, NSTableViewDataSource, NSTabl
         }
         frame.origin = NSPoint(x: window.frame.minX, y: window.frame.maxY - frame.height)
         window.setFrame(window.constrainFrameRect(frame, to: window.screen ?? NSScreen.main), display: true)
+    }
+
+    func showSettings() {
+        show(section: .settings)
     }
 
     func showTutorial() {
@@ -539,7 +550,64 @@ final class PreferencesWindow: NSWindowController, NSTableViewDataSource, NSTabl
             inputStack.bottomAnchor.constraint(equalTo: inputPanel.bottomAnchor, constant: -Metrics.sectionSpacing),
         ])
 
-        return makePage(views: [title, switches, inputPanel])
+        return makePage(views: [title, switches, inputPanel, makeUpdatePanel()])
+    }
+
+    private func makeUpdatePanel() -> NSView {
+        let panel = makePanel()
+        let title = makeSectionTitle("업데이트")
+        let version = makeMetadata("현재 버전 \(Updater.currentVersion)")
+        version.setAccessibilityLabel("Tavi 현재 버전 \(Updater.currentVersion)")
+
+        automaticUpdatesSwitch.state = Updater.automatic ? .on : .off
+        automaticUpdatesSwitch.target = self
+        automaticUpdatesSwitch.action = #selector(automaticUpdatesChanged)
+        automaticUpdatesSwitch.setAccessibilityLabel("자동 업데이트")
+        let automaticRow = makeSwitchRow(title: "자동 업데이트", control: automaticUpdatesSwitch)
+
+        updateButton.title = "업데이트 확인"
+        updateButton.bezelStyle = .rounded
+        updateButton.target = self
+        updateButton.action = #selector(checkUpdates)
+        updateProgress.style = .spinning
+        updateProgress.controlSize = .small
+        updateProgress.isHidden = true
+        updateStatusLabel.font = .systemFont(ofSize: 12)
+        updateStatusLabel.textColor = .secondaryLabelColor
+        updateStatusLabel.setAccessibilityLabel("업데이트 상태")
+        let actions = NSStackView(views: [updateButton, updateProgress, updateStatusLabel])
+        actions.orientation = .horizontal
+        actions.alignment = .centerY
+        actions.spacing = Metrics.controlSpacing
+
+        let stack = NSStackView(views: [title, version, automaticRow, actions])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = Metrics.controlSpacing
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        panel.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: panel.leadingAnchor, constant: Metrics.sectionSpacing),
+            stack.trailingAnchor.constraint(equalTo: panel.trailingAnchor, constant: -Metrics.sectionSpacing),
+            stack.topAnchor.constraint(equalTo: panel.topAnchor, constant: Metrics.sectionSpacing),
+            stack.bottomAnchor.constraint(equalTo: panel.bottomAnchor, constant: -Metrics.sectionSpacing),
+        ])
+        return panel
+    }
+
+    func refreshUpdate(_ status: String, busy: Bool) {
+        updateStatusLabel.stringValue = status
+        updateButton.isEnabled = !busy
+        updateProgress.isHidden = !busy
+        if busy { updateProgress.startAnimation(nil) } else { updateProgress.stopAnimation(nil) }
+    }
+
+    @objc private func automaticUpdatesChanged() {
+        Updater.automatic = automaticUpdatesSwitch.state == .on
+    }
+
+    @objc private func checkUpdates() {
+        onCheckUpdates()
     }
 
     private func makePage(views: [NSView]) -> NSView {

@@ -16,6 +16,22 @@ enum Updater {
         case download, checksum, archive, bundle, signature
     }
 
+    enum Outcome: Equatable {
+        case current, installed(String), unreachable, failed
+    }
+
+    /// Settings → 자동 업데이트. Shared with the input method, which only checks while it is on.
+    static var automatic: Bool {
+        get {
+            CFPreferencesAppSynchronize(InputSourceSetup.bundleID as CFString)
+            return InputMethodRuntime.preferences.object(forKey: "automaticUpdates") as? Bool ?? true
+        }
+        set {
+            InputMethodRuntime.preferences.set(newValue, forKey: "automaticUpdates")
+            CFPreferencesAppSynchronize(InputSourceSetup.bundleID as CFString)
+        }
+    }
+
     static var currentVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
     }
@@ -35,7 +51,7 @@ enum Updater {
     /// Hands a newer release to the app: a running app is told, otherwise it is opened
     /// in the background.
     static func checkFromInputMethod() async {
-        guard let release = await latest(), release.isNewer(than: currentVersion) else { return }
+        guard automatic, let release = await latest(), release.isNewer(than: currentVersion) else { return }
         log.notice("release \(release.version, privacy: .public) is newer than \(currentVersion, privacy: .public)")
         if !NSRunningApplication.runningApplications(withBundleIdentifier: InputSourceSetup.applicationID).isEmpty {
             DistributedNotificationCenter.default().postNotificationName(available, object: nil, deliverImmediately: true)
@@ -50,20 +66,22 @@ enum Updater {
 
     // MARK: App
 
-    /// Replaces this app with the newer release and relaunches it. Returns false when
-    /// there is nothing to do or the update could not be applied.
+    /// Replaces this app with a newer release and relaunches it; `found` hears the
+    /// version before it is downloaded.
     @MainActor
-    static func replaceAppIfNewer(background: Bool) async -> Bool {
+    static func replaceAppIfNewer(background: Bool, found: ((String) -> Void)? = nil) async -> Outcome {
         let app = Bundle.main.bundleURL
-        guard InputMethodPackage.isApplicationLocation(app),
-              let release = await latest(), release.isNewer(than: currentVersion) else { return false }
+        guard let release = await latest() else { return .unreachable }
+        guard release.isNewer(than: currentVersion) else { return .current }
+        guard InputMethodPackage.isApplicationLocation(app) else { return .failed }
+        found?(release.version)
         do {
             let downloaded = try await download(release)
             _ = try FileManager.default.replaceItemAt(app, withItemAt: downloaded)
             try? FileManager.default.removeItem(at: downloaded.deletingLastPathComponent())
         } catch {
             log.error("update to \(release.version, privacy: .public) failed: \(String(describing: error), privacy: .public)")
-            return false
+            return .failed
         }
         log.notice("updated app to \(release.version, privacy: .public)")
         let configuration = NSWorkspace.OpenConfiguration()
@@ -71,7 +89,7 @@ enum Updater {
         configuration.activates = !background
         configuration.arguments = background ? [backgroundArgument] : []
         _ = try? await NSWorkspace.shared.openApplication(at: app, configuration: configuration)
-        return true
+        return .installed(release.version)
     }
 
     /// Downloads, checks and unpacks the release; returns the new Tavi.app.

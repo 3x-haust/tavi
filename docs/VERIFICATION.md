@@ -1,10 +1,10 @@
-# 1.0.0 build 2 development verification
+# 1.1.0 build 5 development verification
 
 Environment: Apple M5, arm64, macOS 27.0 (26A428), October 27, 2026.
 
 ## Automated checks
 
-- `swift test`: **65 tests passed**.
+- `swift test`: **72 tests passed**.
 - `swift run Tavi --check-editor`: `EDITOR_CHECK_PASSED`.
 - Release compilation and strict ad-hoc signature verification passed.
 - Eight isolated installation tests cover fresh install, update, registration
@@ -63,6 +63,9 @@ Release parsing and version ordering are unit-tested. A zip made with
 `ditto -c -k --keepParent dist/Tavi.app` unpacked and passed the bundle and
 signature checks (`--check-update-archive`); a mismatched version was rejected.
 A background `--update` launch with nothing to update exited at once without UI.
+Settings shows the current version, an automatic-update switch (stored in the
+input method's preferences, so the daily check honors it) and an
+“업데이트 확인” button; the page was rendered with `--render-setup`.
 The full path — a published release replacing an installed copy — has **not**
 been exercised, because no GitHub repository or release exists yet.
 

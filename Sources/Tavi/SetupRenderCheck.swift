@@ -14,7 +14,7 @@ enum SetupRenderCheck {
         defer { try? FileManager.default.removeItem(at: dataDirectory) }
         let store = try LearningStore(url: dataDirectory.appendingPathComponent("words.json"))
         let controller = PreferencesWindow(
-            store: store, onEnabled: { _ in }, onLearning: { _ in }, onInputSettings: {},
+            store: store, onEnabled: { _ in }, onLearning: { _ in }, onInputSettings: {}, onCheckUpdates: {},
             onStart: {}, onOpenApplications: {}, onRemoveInputMethod: {}
         )
         let states: [(String, InputMethodSetupState)] = [
@@ -34,19 +34,28 @@ enum SetupRenderCheck {
                 )
                 controller.refreshSetup(state)
                 window.setContentSize(NSSize(width: width, height: state == .ready ? 560 : 640))
-                content.layoutSubtreeIfNeeded()
-                guard let image = content.bitmapImageRepForCachingDisplay(in: content.bounds) else {
-                    preconditionFailure("Setup snapshot unavailable")
-                }
-                content.cacheDisplay(in: content.bounds, to: image)
-                guard let png = image.representation(using: .png, properties: [:]) else {
-                    preconditionFailure("Setup PNG unavailable")
-                }
-                try png.write(to: output.appendingPathComponent("\(name)-\(Int(width)).png"))
+                try snapshot(content, to: output.appendingPathComponent("\(name)-\(Int(width)).png"))
             }
         }
+        controller.refreshSetup(.ready)
+        controller.showSettings()
+        controller.refreshUpdate("최신 버전이에요.", busy: false)
+        window.setContentSize(NSSize(width: 720, height: 560))
+        try snapshot(content, to: output.appendingPathComponent("settings-720.png"))
         window.close()
         print("SETUP_RENDERED")
+    }
+
+    private static func snapshot(_ content: NSView, to url: URL) throws {
+        content.layoutSubtreeIfNeeded()
+        guard let image = content.bitmapImageRepForCachingDisplay(in: content.bounds) else {
+            preconditionFailure("Setup snapshot unavailable")
+        }
+        content.cacheDisplay(in: content.bounds, to: image)
+        guard let png = image.representation(using: .png, properties: [:]) else {
+            preconditionFailure("Setup PNG unavailable")
+        }
+        try png.write(to: url)
     }
 }
 #endif
