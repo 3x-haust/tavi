@@ -1,4 +1,4 @@
-# 1.1.0 build 5 development verification
+# 1.1.1 build 6 development verification
 
 Environment: Apple M5, arm64, macOS 27.0 (26A428), October 27, 2026.
 
