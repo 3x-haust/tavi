@@ -89,9 +89,20 @@ enum InputSourceSetup {
         }
     }
 
-    static func openApplication() -> Bool {
+    /// Asks a running app to show the tutorial; one being launched reads `tutorialArgument`.
+    static let showTutorial = Notification.Name("dev.3xhaust.tavi.show-tutorial")
+    static let tutorialArgument = "--tutorial"
+
+    /// Opens the app's window, on the tutorial when asked.
+    static func openApplication(tutorial: Bool = false) -> Bool {
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: applicationID) else { return false }
-        return NSWorkspace.shared.open(url)
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.arguments = tutorial ? [tutorialArgument] : []
+        NSWorkspace.shared.openApplication(at: url, configuration: configuration)
+        if tutorial {
+            DistributedNotificationCenter.default().postNotificationName(showTutorial, object: nil, deliverImmediately: true)
+        }
+        return true
     }
 
     static func openSettings() {

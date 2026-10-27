@@ -44,7 +44,9 @@ These are release targets, not measured claims:
 - Load statistical tables once, share them across sessions, bound token length
   and dictionary cache size. Never rebuild a lexicon on each keystroke.
 - Create the preferences window only when opened. No resident browser or
-  graphics loop. The menu bar item is static while idle.
+  graphics loop. Tavi adds no menu bar item of its own; its menu is the input-source
+  menu (automatic input, settings and words, tutorial, Keyboard Settings), and the
+  app quits when its window closes.
 - Measure process resident memory and CPU separately with settings closed
   and open. Record model bytes, application bytes, cold-start time, warm engine
   latency and end-to-end editor replacement latency; do not substitute one

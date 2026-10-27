@@ -126,16 +126,30 @@ final class TaviInputController: IMKInputController {
         NSAttributedString(string: session.raw)
     }
 
+    /// Tavi's only menu: the input-source menu in the menu bar.
     override func menu() -> NSMenu! {
         let menu = NSMenu()
-        let settings = NSMenuItem(title: "Tavi 설정…", action: #selector(openSettings(_:)), keyEquivalent: "")
-        settings.target = self
-        menu.addItem(settings)
+        let toggle = NSMenuItem(title: "자동 한영 입력", action: #selector(toggleEnabled(_:)), keyEquivalent: "")
+        toggle.state = runtime.enabled ? .on : .off
+        menu.addItem(toggle)
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "설정과 내 단어…", action: #selector(openSettings(_:)), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "튜토리얼…", action: #selector(openTutorial(_:)), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "키보드 설정 열기…", action: #selector(openKeyboardSettings(_:)), keyEquivalent: ""))
+        menu.items.forEach { $0.target = self }
         return menu
     }
 
-    @objc private func openSettings(_ sender: Any?) {
-        guard !InputSourceSetup.openApplication() else { return }
+    @objc private func toggleEnabled(_ sender: Any?) { runtime.enabled.toggle() }
+
+    @objc private func openKeyboardSettings(_ sender: Any?) { InputSourceSetup.openSettings() }
+
+    @objc private func openTutorial(_ sender: Any?) { openApplication(tutorial: true) }
+
+    @objc private func openSettings(_ sender: Any?) { openApplication(tutorial: false) }
+
+    private func openApplication(tutorial: Bool) {
+        guard !InputSourceSetup.openApplication(tutorial: tutorial) else { return }
         let alert = NSAlert()
         alert.messageText = "응용 프로그램에서 Tavi를 열어 주세요"
         alert.informativeText = "설정 앱을 찾을 수 없어요. Tavi 앱을 응용 프로그램 폴더에 다시 복사해 주세요."

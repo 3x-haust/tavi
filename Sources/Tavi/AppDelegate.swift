@@ -6,16 +6,14 @@ import TaviCore
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let runtime = InputMethodRuntime.shared
     private let installer = InputMethodInstaller()
-    private var item: NSStatusItem?
-    private var toggleItem: NSMenuItem?
-    private var statusItem: NSMenuItem?
     private var preferences: PreferencesWindow?
     private var observers: [NSObjectProtocol] = []
     private var sourceObserver: NSObjectProtocol?
     private var enabledSourcesObserver: NSObjectProtocol?
     private var preferencesObserver: NSObjectProtocol?
     private var updateObserver: NSObjectProtocol?
-    /// Opened by the input method only to update; no window, menu bar item or Dock icon.
+    private var tutorialObserver: NSObjectProtocol?
+    /// Opened by the input method only to update; no window, menu or Dock icon.
     private let background = CommandLine.arguments.contains(Updater.backgroundArgument)
     /// An update of an already added Tavi shows nothing until it is done.
     private var updatingQuietly = false
@@ -35,10 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if !background {
-            installEditingMenu()
-            installStatusMenu()
-        }
+        if !background { installEditingMenu() }
         installer.changed = { [weak self] state in
             guard let self else { return }
             if self.updatingQuietly {
@@ -77,8 +72,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateObserver = DistributedNotificationCenter.default().addObserver(
             forName: Updater.available, object: nil, queue: .main
         ) { [weak self] _ in MainActor.assumeIsolated { self?.updateApp() } }
+        // The input-source menu's 튜토리얼… while the app is already running.
+        tutorialObserver = DistributedNotificationCenter.default().addObserver(
+            forName: InputSourceSetup.showTutorial, object: nil, queue: .main
+        ) { [weak self] _ in MainActor.assumeIsolated { self?.showTutorial() } }
         installer.refresh()
-        if !background { showPreferences() }
+        if CommandLine.arguments.contains(InputSourceSetup.tutorialArgument) {
+            showTutorial()
+        } else if !background {
+            showPreferences()
+        }
         updateApp()
     }
 
@@ -128,7 +131,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let enabledSourcesObserver { DistributedNotificationCenter.default().removeObserver(enabledSourcesObserver) }
         if let preferencesObserver { NotificationCenter.default.removeObserver(preferencesObserver) }
         if let updateObserver { DistributedNotificationCenter.default().removeObserver(updateObserver) }
-        if let item { NSStatusBar.system.removeStatusItem(item) }
+        if let tutorialObserver { DistributedNotificationCenter.default().removeObserver(tutorialObserver) }
+    }
+
+    /// With no menu bar item, closing the window quits; the input method reopens the app
+    /// in the background when an update arrives.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        !background && !updatingApp && !updatingQuietly
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -140,52 +149,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installer.isWorking ? .terminateCancel : .terminateNow
     }
 
-    private func installStatusMenu() {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.title = "Tavi"
-        item.button?.setAccessibilityLabel("Tavi")
-        self.item = item
-        let menu = NSMenu()
-        let statusItem = NSMenuItem(title: status, action: nil, keyEquivalent: "")
-        statusItem.isEnabled = false
-        menu.addItem(statusItem)
-        self.statusItem = statusItem
-        menu.addItem(.separator())
-        let toggle = NSMenuItem(title: "", action: #selector(toggleEnabled), keyEquivalent: "")
-        toggle.target = self
-        menu.addItem(toggle)
-        toggleItem = toggle
-        for (title, action) in [
-            ("Tavi 입력 소스 선택", #selector(selectInputSource)),
-            ("설정과 내 단어…", #selector(showPreferences)),
-            ("튜토리얼…", #selector(showTutorial)),
-            ("키보드 설정 열기…", #selector(openInputSettings)),
-        ] {
-            let entry = NSMenuItem(title: title, action: action, keyEquivalent: "")
-            entry.target = self
-            menu.addItem(entry)
-        }
-        menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Tavi 종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-        item.menu = menu
-    }
-
     private func refresh() {
-        statusItem?.title = status
-        toggleItem?.title = runtime.enabled ? "자동 한영 끄기" : "자동 한영 켜기"
-        item?.button?.toolTip = status
         preferences?.refresh(enabled: runtime.enabled, learning: runtime.learning, status: status)
     }
-
-    @objc private func toggleEnabled() { runtime.enabled.toggle() }
-
-    @objc private func selectInputSource() {
-        installer.refresh()
-        guard installer.state == .ready else { showPreferences(); return }
-        Task { await installer.select() }
-    }
-
-    @objc private func openInputSettings() { InputSourceSetup.openSettings() }
 
     private func startSetup() {
         Task { await installer.start() }

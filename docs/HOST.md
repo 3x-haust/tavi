@@ -3,7 +3,9 @@
 Tavi 1.0.0 is distributed as an ordinary Applications app. Its regular
 `dev.3xhaust.tavi` process owns settings and guided installation. It embeds
 `Contents/Helpers/TaviInputMethod.app`, whose `dev.3xhaust.inputmethod.tavi`
-process owns the IMK server and has no separate Dock or status item.
+process owns the IMK server and has no separate Dock or status item. Its
+input-source menu is Tavi's only menu: the automatic-input switch, and items that
+open the app (on the tutorial when asked) or Keyboard Settings.
 Until Tavi is in the user's input sources, the app window is a single setup page:
 the Keyboard Settings recording plays inline and one button installs the component
 into `~/Library/Input Methods/Tavi.app` and opens Keyboard Settings. Adding Tavi
