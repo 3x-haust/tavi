@@ -1,4 +1,4 @@
-# 1.1.2 build 7 development verification
+# 1.1.3 build 8 development verification
 
 Environment: Apple M5, arm64, macOS 27.0 (26A428), October 27, 2026.
 

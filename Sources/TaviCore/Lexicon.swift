@@ -74,9 +74,12 @@ struct Lexicon {
         let completeKorean = Hangul.jamoCount(stem) == 0 && (koreanShifted || !raw.contains(where: \.isUppercase))
         let stemScore = pending ? Self.model.koreanScore(stem) : koreanScore
         let knownWholeKorean = Self.model.isKnownKorean(stem)
-        func addSplit(_ text: String, _ score: Double, _ reason: String, latin: String, learned: Bool) {
+        // A Latin tail after Korean is the rarer order (particles follow English, not precede it), and the
+        // English word lists hold Korean typed in the wrong mode (si = 냐, rjtl = 거시), so when the whole
+        // reading is clean Korean (anjsi → 뭐냐, not 뭐si) the Korean wins unless the tail was learned.
+        func addSplit(_ text: String, _ score: Double, _ reason: String, latin: String, learned: Bool, koreanFirst: Bool = false) {
             let coincidental = completeKorean && !learned
-                && (knownWholeKorean || koreanShifted || (stemScore >= 5 && latin.count <= 3))
+                && (koreanFirst || knownWholeKorean || koreanShifted || (stemScore >= 5 && latin.count <= 3))
             add(text, coincidental ? min(score, koreanScore - 1) : score, reason)
         }
 
@@ -122,7 +125,7 @@ struct Lexicon {
                         let preferredTail = rememberedLatinTail
                             ? Self.learned(in: learnedByKey, folded: learnedByFolded, matching: tail)?.text ?? tail : tail
                         addSplit(headHangul + preferredTail, rememberedLatinTail ? 30 : 10.5,
-                                 "한국어 + Latin", latin: tail, learned: rememberedLatinTail)
+                                 "한국어 + Latin", latin: tail, learned: rememberedLatinTail, koreanFirst: true)
                     }
                 }
             }

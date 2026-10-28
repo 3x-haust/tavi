@@ -27,6 +27,10 @@ final class CompositionTests: XCTestCase {
     func testCoincidentalEnglishFragmentDoesNotSplitCompleteKorean() {
         XCTAssertEqual(engine("ahdmf").text, "모을")
         XCTAssertEqual(engine("gksdud").text, "한영")
+        // Korean then a stray "English" tail: the clean Korean reading wins, a real mixed word still splits.
+        XCTAssertEqual(engine("anjsi").text, "뭐냐")
+        XCTAssertEqual(engine("dlrjtl").text, "이거시")
+        XCTAssertEqual(engine("tofeature").text, "새feature")
         XCTAssertTrue(engine("gksdud").candidates.contains { $0.text == "한dud" })
         XCTAssertEqual(engine("gitdmf").text, "git을")
         XCTAssertEqual(engine("slackdp").text, "slack에")
