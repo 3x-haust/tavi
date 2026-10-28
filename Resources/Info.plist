@@ -26,5 +26,7 @@
 	<string>NSApplication</string>
 	<key>TaviUpdateRepository</key>
 	<string>3x-haust/tavi</string>
+	<key>TaviUpdatePublicKey</key>
+	<string>k6crVb3PuDp1IXIJMFq7CmoR9SXKo6JaV15oivGtEOM=</string>
 </dict>
 </plist>

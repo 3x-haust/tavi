@@ -86,10 +86,13 @@ Updates come from the repository's latest GitHub release (`Tavi-<version>.zip`).
 The input-method process checks at launch and about daily via
 NSBackgroundActivityScheduler; it posts `dev.3xhaust.tavi.update-available` to a
 running app or opens the app with `--update` (accessory policy, no window or status
-item). The app verifies the archive (GitHub SHA-256 digest when present, bundle ID,
-version of app and embedded component, `codesign --verify --deep --strict`),
-replaces its own bundle, and relaunches. The relaunched app finds the component
-out of date and replaces it with the existing install path, reselecting Tavi only
+item). The app verifies the archive (GitHub's SHA-256 digest and the maintainer's
+Ed25519 signature `Tavi-<version>.zip.sig` against `TaviUpdatePublicKey`, both
+required; bundle ID, version of app and embedded component;
+`codesign --verify --deep --strict`), replaces its own bundle, and relaunches.
+The builds are ad-hoc signed, so the Ed25519 signature is what ties an update to
+its publisher: a compromised GitHub account alone cannot ship one. The relaunched
+app finds the component out of date and replaces it with the existing install path, reselecting Tavi only
 if it was selected; while that runs the window keeps its normal layout.
 
 Core tests are not proof of host compatibility. Ghostty and native AppKit

@@ -56,6 +56,8 @@ expect_value "$parent_plist" CFBundlePackageType APPL
 expect_value "$parent_plist" CFBundleShortVersionString "$release"
 expect_value "$parent_plist" CFBundleVersion "$build"
 expect_value "$parent_plist" TaviUpdateRepository "$(plist_value "$(dirname "$0")/../Resources/Info.plist" TaviUpdateRepository)"
+[[ "$(plist_value "$parent_plist" TaviUpdatePublicKey | base64 -D 2>/dev/null | wc -c | tr -d ' ')" == 32 ]] ||
+    fail "$parent_plist TaviUpdatePublicKey must be a base64 Ed25519 public key"
 for key in \
     LSUIElement \
     LSBackgroundOnly \

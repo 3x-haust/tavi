@@ -1,5 +1,4 @@
 import AppKit
-import CryptoKit
 import OSLog
 import TaviCore
 
@@ -13,7 +12,7 @@ enum Updater {
     private static let log = Logger(subsystem: "dev.3xhaust.tavi", category: "update")
 
     private enum Failure: Error {
-        case download, checksum, archive, bundle, signature
+        case download, checksum, unsigned, archive, bundle, signature
     }
 
     enum Outcome: Equatable {
@@ -92,27 +91,35 @@ enum Updater {
         return .installed(release.version)
     }
 
-    /// Downloads, checks and unpacks the release; returns the new Tavi.app.
-    private static func download(_ release: UpdateRelease) async throws -> URL {
-        let (file, response) = try await URLSession.shared.download(from: release.archive)
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw Failure.download }
-        return try unpack(file, as: release)
+    /// The maintainer's Ed25519 public key; only archives it signed are installed.
+    private static var publicKey: Data? {
+        (Bundle.main.object(forInfoDictionaryKey: "TaviUpdatePublicKey") as? String).flatMap { Data(base64Encoded: $0) }
     }
 
-    static func unpack(_ file: URL, as release: UpdateRelease) throws -> URL {
-        if let expected = release.sha256 {
-            let digest = SHA256.hash(data: try Data(contentsOf: file, options: .mappedIfSafe))
-            guard digest.map({ String(format: "%02x", $0) }).joined() == expected else { throw Failure.checksum }
-        }
+    /// Downloads, checks and unpacks the release; returns the new Tavi.app.
+    private static func download(_ release: UpdateRelease) async throws -> URL {
+        guard let signatureURL = release.signature, let publicKey else { throw Failure.unsigned }
+        let (signature, signed) = try await URLSession.shared.data(from: signatureURL)
+        guard (signed as? HTTPURLResponse)?.statusCode == 200 else { throw Failure.download }
+        let (file, response) = try await URLSession.shared.download(from: release.archive)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw Failure.download }
+        let archive = try Data(contentsOf: file, options: .mappedIfSafe)
+        guard release.matchesDigest(archive) else { throw Failure.checksum }
+        guard UpdateRelease.isSigned(archive, signature: signature, publicKey: publicKey) else { throw Failure.unsigned }
+        return try unpack(file, version: release.version)
+    }
+
+    /// Unpacks a verified archive and checks the bundle inside it.
+    static func unpack(_ file: URL, version: String) throws -> URL {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("Tavi-update-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         guard try run("/usr/bin/ditto", ["-x", "-k", file.path, folder.path]) else { throw Failure.archive }
         let app = folder.appendingPathComponent("Tavi.app")
         let info = Bundle(url: app)?.infoDictionary
         guard info?["CFBundleIdentifier"] as? String == InputSourceSetup.applicationID,
-              info?["CFBundleShortVersionString"] as? String == release.version,
+              info?["CFBundleShortVersionString"] as? String == version,
               (try? InputMethodPackage.version(at: app.appendingPathComponent("Contents/Helpers/TaviInputMethod.app")))?
-                .release == release.version else { throw Failure.bundle }
+                .release == version else { throw Failure.bundle }
         guard try run("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path]) else { throw Failure.signature }
         return app
     }
