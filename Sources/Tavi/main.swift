@@ -81,7 +81,8 @@ if CommandLine.arguments.contains("--register-input-source") {
     let report: [String: Any] = [
         "iterations": timings.count, "p50_ms": timings[iterations / 2],
         "p95_ms": timings[iterations * 95 / 100], "p99_ms": timings[iterations * 99 / 100],
-        "max_ms": timings.last ?? 0, "checksum": checksum,
+        // Not `timings.last ?? 0`: older compilers box that as an Optional, which JSON cannot write.
+        "max_ms": timings[timings.count - 1], "checksum": checksum,
         "personal_words": engine.words.count, "profile": stress ? "full-dictionary-and-64-key-token" : "short-typing",
         "cold_first_decision_ms": coldMilliseconds,
         "cpu_seconds": cpuSeconds(after) - cpuSeconds(before),
