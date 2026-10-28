@@ -69,6 +69,11 @@ input method's preferences, so the daily check honors it) and an
 The full path — a published release replacing an installed copy — has **not**
 been exercised, because no GitHub repository or release exists yet.
 
+## Password prompts
+
+Pass-through under Secure Event Input is built but has **not** been exercised with a
+real `sudo` prompt in Ghostty, Terminal or iTerm2.
+
 ## Release status
 
 Releases are published on GitHub (`3x-haust/tavi`) with `scripts/release.sh`.

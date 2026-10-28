@@ -1,4 +1,5 @@
 import AppKit
+import Carbon
 import InputMethodKit
 import OSLog
 import TaviCore
@@ -92,7 +93,7 @@ final class TaviInputController: IMKInputController {
         }
         guard event.type == .keyDown else { return false }
         keystrokes += 1
-        guard runtime.enabled else {
+        guard runtime.enabled, !Self.isSecureInput(in: client) else {
             _ = apply(session.finish(learn: false), to: client)
             return false
         }
@@ -143,6 +144,17 @@ final class TaviInputController: IMKInputController {
             }
         }
         return apply(update, to: client)
+    }
+
+    /// A password prompt that turned on Secure Event Input, as Ghostty does for `sudo`: its keys
+    /// pass through untouched, so a password is never read as Korean or shown as marked text.
+    /// Secure input another app left on does not stop Tavi elsewhere; an unknown owner counts.
+    private static func isSecureInput(in client: IMKTextInput) -> Bool {
+        guard IsSecureEventInputEnabled() else { return false }
+        guard let session = CGSessionCopyCurrentDictionary() as? [String: Any],
+              let pid = session["kCGSSessionSecureInputPID"] as? pid_t,
+              let owner = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier else { return true }
+        return owner == client.bundleIdentifier()
     }
 
     /// Terminals that encode a key event with the text an input method commits during it as one or the other.
