@@ -21,3 +21,5 @@ jobs:
         run: bash scripts/build.sh
       - name: Benchmark core
         run: dist/Tavi.app/Contents/MacOS/Tavi --benchmark
+      - name: Measure accuracy
+        run: dist/Tavi.app/Contents/MacOS/Tavi --accuracy

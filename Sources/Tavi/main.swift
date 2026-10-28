@@ -1,4 +1,5 @@
 import AppKit
+import CryptoKit
 import Foundation
 import Darwin
 import TaviCore
@@ -92,6 +93,38 @@ if CommandLine.arguments.contains("--register-input-source") {
     ]
     if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]),
        let json = String(data: data, encoding: .utf8) { print(json) }
+} else if let index = CommandLine.arguments.firstIndex(of: "--accuracy") {
+    // Types each word of the fixed set into a fresh session, as keys then Space, and counts exact commits.
+    let path = CommandLine.arguments.indices.contains(index + 1) ? CommandLine.arguments[index + 1] : "Tests/Accuracy/eval-v1.tsv"
+    guard let data = FileManager.default.contents(atPath: path), let source = String(data: data, encoding: .utf8) else {
+        fputs("ACCURACY_FAILED: cannot read \(path)\n", stderr); exit(1)
+    }
+    var totals: [String: (correct: Int, total: Int, misses: [String])] = [:]
+    for line in source.split(separator: "\n") where !line.hasPrefix("#") {
+        let fields = line.split(separator: "\t").map(String.init)
+        guard fields.count == 2 else { continue }
+        let raw = Hangul.keys(for: fields[1])
+        var session = InputSession()
+        for key in raw { _ = session.handle(.text(String(key))) }
+        guard case .commit(let text, _, _) = session.handle(.space) else { continue }
+        let committed = String(text.dropLast())
+        var tally = totals[fields[0], default: (0, 0, [])]
+        tally.total += 1
+        if committed == fields[1] { tally.correct += 1 } else if tally.misses.count < 10 {
+            tally.misses.append("\(raw) → \(committed) (expected \(fields[1]))")
+        }
+        totals[fields[0]] = tally
+    }
+    let correct = totals.values.map(\.correct).reduce(0, +), total = totals.values.map(\.total).reduce(0, +)
+    var report: [String: Any] = [
+        "set": path, "sha256": SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined(),
+        "total": total, "accuracy": total == 0 ? 0 : Double(correct) / Double(total),
+    ]
+    for (category, tally) in totals {
+        report[category] = ["total": tally.total, "accuracy": Double(tally.correct) / Double(tally.total), "misses": tally.misses]
+    }
+    if let json = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]),
+       let text = String(data: json, encoding: .utf8) { print(text) }
 } else if CommandLine.arguments.contains("--diagnose") {
     print("mode=\(InputSourceSetup.isInputMethodProcess ? "input-method" : "application")")
     print("selected=\(InputSourceSetup.isSelected)")

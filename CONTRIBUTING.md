@@ -6,11 +6,13 @@ Use Xcode and Swift 6 or later on macOS 14 or later.
 swift test
 bash scripts/build.sh
 dist/Tavi.app/Contents/MacOS/Tavi --benchmark
+dist/Tavi.app/Contents/MacOS/Tavi --accuracy
 ```
 
 Keep runtime dependencies at zero. Do not introduce polling, synchronous network
 inference, runtime corpus training, per-key file loads or unbounded caches.
-Report model bytes and warm latency when changing the classifier.
+Report model bytes, warm latency and `--accuracy` per set when changing the
+classifier. Do not tune against the accuracy set's rows; it measures held-out words.
 
 Add regression cases to the existing Swift tests. Cover both intended corrections
 and valid words that must not change. Never publish private typing samples,

@@ -30,7 +30,7 @@ SOFTWARE.
 
 ## SCOWL English word levels
 
-Tavi transforms levels 10, 20, and 35 from Araso's pinned `english_words.txt` into Bloom-filter score floors. The following upstream SCOWL copyright notice is preserved verbatim.
+Tavi transforms levels 10, 20, and 35 from Araso's pinned `english_words.txt` into Bloom-filter score floors. The accuracy set `Tests/Accuracy/eval-v1.tsv` (not bundled in the app) lists 2,000 words from levels 40 and 50. The following upstream SCOWL copyright notice is preserved verbatim.
 
 The collective work is Copyright 2000-2018 by Kevin Atkinson as well
 as any of the copyrights mentioned below:
@@ -283,7 +283,7 @@ and Australian word list.  It is under the following copyright:
 
 ## Tatoeba Korean derived statistics
 
-Tavi transforms Araso's pinned Korean syllable and word count files into a fixed syllable table and Bloom filter. The following upstream data notice is preserved verbatim.
+Tavi transforms Araso's pinned Korean syllable and word count files into a fixed syllable table and Bloom filter. The accuracy set `Tests/Accuracy/eval-v1.tsv` (not bundled in the app) also lists 1,000 of these Korean words. The following upstream data notice is preserved verbatim.
 
 kana_trigrams.txt, text_trigrams.txt, korean_syllables.txt and korean_words.txt are
 character n-gram, syllable and word counts computed from sentences of the Tatoeba corpus (https://tatoeba.org),
