@@ -70,7 +70,11 @@ Segmentation is intentionally narrow and bounded to a maximum 64-key token:
   (`dkssud3xhaust` -> `안녕3Xhaust` after learning `3Xhaust`).
 
 There is no generic beam search. URLs, paths, email-like strings, identifiers,
-digits, acronyms, and camel-case code receive a literal floor. Whole valid
+digits, acronyms, and camel-case code receive a literal floor. One exception: a
+number followed only by letters keeps the number and reads the letters as their
+own word (`3ro` -> `3개`, `10dlf` -> `10일`), unless the letters are an English
+ordinal or unit (`4th`, `5km`, `3px`), a learned word starts the token, or the
+Korean reading is below 0.80 confidence (`3xhaust` stays literal). Whole valid
 English remains literal. Ambiguous words remain fallible and are corrected via
 candidate cycling, explicit input-source choice, or learned words.
 
