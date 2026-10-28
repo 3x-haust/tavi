@@ -89,6 +89,19 @@ final class CompositionTests: XCTestCase {
         }
     }
 
+    func testNumberBeforeKoreanKeepsTheNumberAndReadsTheWord() {
+        for (raw, text) in [
+            ("3ro", "3개"), ("10dlf", "10일"), ("2tl", "2시"), ("100dnjs", "100원"),
+            ("5qns", "5분"), ("2rodml", "2개의"), ("30tkf", "30살"), ("2dlsqns", "2인분"),
+        ] {
+            XCTAssertEqual(engine(raw).text, text, raw)
+        }
+        // Ordinals, units, handles and English after a number stay as typed.
+        for literal in ["4th", "1st", "5km", "3px", "2fa", "100ms", "2gb", "3xhaust", "3apples", "1080p", "h264", "v2"] {
+            XCTAssertEqual(engine(literal).text, literal, literal)
+        }
+    }
+
     func testPreviousTokenProvidesSmallDeterministicContext() {
         var english = CompositionEngine()
         english.previousToken = "English"

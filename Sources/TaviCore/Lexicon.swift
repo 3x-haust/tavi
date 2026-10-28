@@ -14,6 +14,12 @@ struct Lexicon {
         "라고", "이라고", "라는", "이라는", "이나", "나", "요", "야", "입니다", "를요", "는요",
     ]
     private static let suffixKeys = Set(suffixes.map { Hangul.keys(for: $0) })
+    /// Ordinals and units that follow a number in English (4th, 5km, 3px), which stay Latin.
+    private static let numberSuffixes: Set<String> = [
+        "st", "nd", "rd", "th", "am", "pm", "px", "pt", "em", "ms", "fps", "hz", "khz", "mhz", "ghz",
+        "kb", "mb", "gb", "tb", "kbps", "mbps", "gbps", "km", "kg", "cm", "mm", "ml", "hr", "hrs",
+        "min", "sec", "fa", "gen", "bit", "bits", "pc", "pcs", "rpm", "dpi", "ppi", "xl", "xs",
+    ]
 
     func candidates(
         for raw: String,
@@ -23,6 +29,26 @@ struct Lexicon {
         check: ((String) -> Bool)?
     ) -> [Candidate] {
         guard !raw.isEmpty else { return [] }
+        // A count or date before Korean (3ro → 3개, 10dlf → 10일): the number stays as typed and
+        // the letters are read as a word of their own, unless a learned word starts the token
+        // (3xhaustsms → 3Xhaust는). A doubtful Korean reading (3xhaust → 3토면ㅅ) leaves it literal.
+        if let split = raw.firstIndex(where: { !($0.isASCII && $0.isNumber) }), split != raw.startIndex,
+           !raw.indices[split...].contains(where: {
+               Self.learned(in: learnedByKey, folded: learnedByFolded, matching: String(raw[...$0])) != nil
+           }) {
+            let letters = String(raw[split...])
+            if letters.count >= 2, letters.allSatisfy({ $0.isASCII && $0.isLetter }),
+               !Self.numberSuffixes.contains(letters.lowercased()) {
+                let number = String(raw[..<split])
+                let reading = candidates(
+                    for: letters, previousToken: previousToken,
+                    learnedByKey: learnedByKey, learnedByFolded: learnedByFolded, check: check
+                )
+                if let best = reading.first, !Self.isKoreanText(best.text) || best.confidence >= 0.80 {
+                    return reading.map { Candidate(text: number + $0.text, reason: $0.reason, confidence: $0.confidence) }
+                }
+            }
+        }
         let hangul = Hangul.compose(raw)
         var scored: [Scored] = []
         func add(_ text: String, _ score: Double, _ reason: String) {
