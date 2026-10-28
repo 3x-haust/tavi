@@ -37,6 +37,29 @@ final class InputSessionTests: XCTestCase {
         XCTAssertEqual(continued.text, "hhhhhe")
     }
 
+    func testLanguageKeyBeforeAWordSetsTheNextWordsLanguage() {
+        var session = InputSession()
+        func type(_ keys: String) -> String {
+            for key in keys { _ = session.handle(.text(String(key))) }
+            guard case .commit(let text, _, _) = session.handle(.space) else { return "" }
+            return text
+        }
+        // Before any word the language the key switched to is used.
+        session.toggleNextLanguage(fallback: .korean)
+        XCTAssertEqual(type("hello"), "ㅗ디ㅣㅐ ")
+        // After Korean the next word is Latin, after Latin Korean, and only for one word.
+        session.toggleNextLanguage(fallback: .korean)
+        XCTAssertEqual(type("dkssud"), "dkssud ")
+        session.toggleNextLanguage(fallback: .latin)
+        XCTAssertEqual(type("gksrmf"), "한글 ")
+        XCTAssertEqual(type("hello"), "hello ")
+        // A second press returns to automatic input.
+        session.toggleNextLanguage(fallback: .korean)
+        session.toggleNextLanguage(fallback: .korean)
+        XCTAssertNil(session.nextLanguage)
+        XCTAssertEqual(type("dkssud"), "안녕 ")
+    }
+
     func testReturnConfirmsAndReachesTheHost() {
         var session = InputSession()
         for key in "dkssud" { _ = session.handle(.text(String(key))) }

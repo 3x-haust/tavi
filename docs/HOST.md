@@ -35,9 +35,12 @@ Input Monitoring permission.
    intercept it: macOS switches sources and ends the composition, and that end is
    deferred 80 ms. If the source really changed, the word toggles between its Korean
    reading and its literal keys, uncommitted, and Tavi re-selects itself; otherwise it
-   was a focus change and the word commits as usual. Without a composition the key
-   keeps its OS meaning. On its first run the input-method process turns off macOS's
-   per-document input source (`TextInputGlobalPropertyPerContextInput`), once; windows
+   was a focus change and the word commits as usual. Without a composition, a switch
+   whose newest input within a second was a key rather than a click (the system's
+   last-event times, no Input Monitoring needed) is undone the same way: Tavi re-selects itself and types the next word in the other
+   language from the last one (the switched-to source's before any word); pressing
+   again returns to automatic input. A source chosen from the menu stays chosen.
+   On its first run the input-method process turns off macOS's per-document input source (`TextInputGlobalPropertyPerContextInput`), once; windows
    that never activate an app, such as Spotlight, would otherwise keep their own source.
    The input-method process also
    undoes per-document source swaps that follow an app activation while Tavi was the

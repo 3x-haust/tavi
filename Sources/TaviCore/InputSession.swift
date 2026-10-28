@@ -15,6 +15,8 @@ public struct InputSession {
     private var literalUntilBoundary = false
     public var raw: String { engine.raw }
     public var text: String { engine.text }
+    /// Set by the language key while nothing is composed; the next word is typed in it.
+    public private(set) var nextLanguage: InputLanguage?
 
     public init() {}
 
@@ -53,8 +55,26 @@ public struct InputSession {
                 return .commit(original + key, consumesEvent: true, evidence: nil)
             }
             engine.append(key)
+            if let language = nextLanguage {
+                engine.lock(to: language)
+                nextLanguage = nil
+            }
             return .mark(text)
         }
+    }
+
+    /// The language key with nothing composed, as an ordinary input method user presses it
+    /// before a word: the next word is typed in the other language from the last one
+    /// (`fallback` before any word). Pressing it again returns to automatic input.
+    public mutating func toggleNextLanguage(fallback: InputLanguage) {
+        guard raw.isEmpty else { return }
+        if nextLanguage != nil {
+            nextLanguage = nil
+            return
+        }
+        nextLanguage = engine.previousToken.map {
+            $0.unicodeScalars.contains { (0xAC00...0xD7A3).contains($0.value) } ? .latin : .korean
+        } ?? fallback
     }
 
     /// The user's input-source switch key during a composition toggles the word between
