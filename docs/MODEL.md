@@ -115,6 +115,27 @@ backspace recomposition, statistical separation, and the resource ceiling.
 Latency is measured separately through the app's `--benchmark` entry point so
 timing noise is not turned into a nondeterministic correctness test.
 
+Accuracy is measured with `--accuracy` against the fixed set
+`Tests/Accuracy/eval-v1.tsv` (SHA-256
+`51f293897466ad708973c3c8b1c8310c3755ff2d94c50cb0112114ad074e1e6e`), rebuilt or
+checked with `python3 tools/generate_eval.py [--check]` from the model's pinned
+sources. Each row is typed into a fresh session as its Dubeolsik keys plus Space,
+with no personal words or previous token, and must commit exactly:
+
+- `english`: 1,000 SCOWL level 40/50 words, none in the known-English floor;
+- `korean`: 1,000 Tatoeba Korean words outside the known-Korean floor;
+- `mixed`: 1,000 further level 40/50 words, each with a Korean particle (`word를`).
+
+The words are held out of the word lists only; trigram and syllable counts come
+from the same corpora. The October 28, 2026 run of the shipped model:
+
+| Set | Accuracy |
+| --- | ---: |
+| english | 96.8% |
+| korean | 97.6% |
+| mixed | 94.6% |
+| all 3,000 | 96.3% |
+
 The October 27, 2026 release-build run on the development Apple M5 measured
 10,000 warm core decisions and commits:
 
