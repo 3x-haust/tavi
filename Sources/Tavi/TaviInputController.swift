@@ -57,6 +57,7 @@ final class TaviInputController: IMKInputController {
     private func end(on client: IMKTextInput) {
         guard !session.raw.isEmpty, runtime.enabled else {
             _ = apply(session.finish(learn: false), to: client)
+            if runtime.enabled, Self.lastInputWasAKey { keepAfterEmptySwitch() }
             return
         }
         guard !deciding else { return }
@@ -76,6 +77,37 @@ final class TaviInputController: IMKInputController {
             } else if typed == self.keystrokes || !InputSourceSetup.isSelected {
                 _ = self.apply(self.session.finish(learn: false), to: client)
             }
+        }
+    }
+
+    /// Whether the newest input, within the last second, was a key rather than a click: a source
+    /// switch then came from the language key (⌃Space, Globe, a remapped 한/영 key the system
+    /// consumes), not from the input menu. Event times need no Input Monitoring permission.
+    private static var lastInputWasAKey: Bool {
+        func since(_ type: CGEventType) -> Double {
+            CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: type)
+        }
+        let key = min(since(.keyDown), since(.flagsChanged))
+        return key < 1 && key < min(since(.leftMouseDown), since(.rightMouseDown))
+    }
+
+    /// The language key with nothing composed would leave Tavi for the system's own Korean or
+    /// ABC input, where it stays. Instead Tavi returns and types the next word in the other language.
+    private func keepAfterEmptySwitch() {
+        guard !deciding else { return }
+        deciding = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
+            guard let self else { return }
+            self.deciding = false
+            guard !InputSourceSetup.isSelected else { return }
+            let target = SourceMonitor.currentLanguage() ?? .korean
+            self.resuming = true
+            guard InputSourceSetup.reselect() == noErr else {
+                self.resuming = false
+                return
+            }
+            self.session.toggleNextLanguage(fallback: target)
+            Self.log.notice("empty switch next=\(self.session.nextLanguage?.rawValue ?? "automatic", privacy: .public)")
         }
     }
 
