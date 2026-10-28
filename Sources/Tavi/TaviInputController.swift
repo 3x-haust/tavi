@@ -85,6 +85,8 @@ final class TaviInputController: IMKInputController {
             guard event.keyCode == 57 else { return false }
             Self.log.notice("caps lock keys=\(self.session.raw.count) switches=\(LanguageKey.capsLockSwitches)")
             guard LanguageKey.capsLockSwitches, !session.raw.isEmpty, runtime.enabled else { return false }
+            // One press can arrive twice a few milliseconds apart; a second toggle would undo the first.
+            guard Date().timeIntervalSince(capsToggle) > 0.05 else { return true }
             capsToggle = Date()
             return apply(session.toggleLanguage(), to: client)
         }
@@ -117,8 +119,34 @@ final class TaviInputController: IMKInputController {
                 }) ? .passThrough : .text(characters)
             }
         }
-        return apply(session.handle(key), to: client)
+        // Without a text field (Finder's file list, a table) keys keep their own meaning, such as type-select.
+        if session.raw.isEmpty, case .text = key, client.selectedRange().location == NSNotFound {
+            Self.log.notice("no text field in \(client.bundleIdentifier() ?? "?", privacy: .public)")
+            return false
+        }
+        let update = session.handle(key)
+        if case .commit(let text, _, let evidence) = update, Self.keyDropsCommittedText.contains(client.bundleIdentifier() ?? "") {
+            switch key {
+            case .text, .space:
+                break
+            case .enter, .escape:
+                // These hosts send either the committed text or the key, never both; the key rides along as text.
+                client.insertText(text, replacementRange: replacement)
+                client.insertText(event.characters ?? "\r", replacementRange: replacement)
+                runtime.confirm(evidence)
+                return true
+            default:
+                // Tab, arrows and shortcuts would replace the text: commit after the key and let the next press act.
+                DispatchQueue.main.async { client.insertText(text, replacementRange: self.replacement) }
+                runtime.confirm(evidence)
+                return true
+            }
+        }
+        return apply(update, to: client)
     }
+
+    /// Terminals that encode a key event with the text an input method commits during it as one or the other.
+    private static let keyDropsCommittedText: Set<String> = ["com.mitchellh.ghostty"]
 
     override func composedString(_ sender: Any!) -> Any! { session.text as NSString }
 

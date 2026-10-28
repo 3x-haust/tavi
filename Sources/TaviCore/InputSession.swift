@@ -28,18 +28,13 @@ public struct InputSession {
             guard !raw.isEmpty else { return .pass }
             engine.backspace()
             return .mark(text)
-        case .escape:
-            literalUntilBoundary = false
-            guard !raw.isEmpty else { return .pass }
-            return .commit(engine.cancel(), consumesEvent: true, evidence: nil)
         case .space:
             literalUntilBoundary = false
             return commit(suffix: " ", consumesEvent: true, learn: true)
         case .enter:
             literalUntilBoundary = false
-            return commit(suffix: "", consumesEvent: true, learn: true)
-        case .passThrough:
-            literalUntilBoundary = false
+            return commit(suffix: "", consumesEvent: false, learn: true)
+        case .escape, .passThrough:
             return finish(learn: false)
         case .text(let key):
             guard !literalUntilBoundary else { return .pass }

@@ -53,6 +53,22 @@ enum InputSourceSetup {
         return isSelected ? noErr : OSStatus(paramErr)
     }
 
+    /// macOS's "Automatically switch to a document's input source" gives each window,
+    /// Spotlight included, its own remembered source, so Tavi would be swapped out wherever
+    /// it was not chosen before. Turned off once, when Tavi first runs; the user may turn it
+    /// back on and Tavi leaves it alone after that.
+    static func keepOneSourceEverywhereOnce() {
+        let done = "perDocumentSourcesTurnedOff"
+        guard InputMethodRuntime.preferences.object(forKey: done) == nil else { return }
+        let domain = "com.apple.HIToolbox" as CFString, key = "AppleGlobalTextInputProperties" as CFString
+        var properties = CFPreferencesCopyAppValue(key, domain) as? [String: Any] ?? [:]
+        properties["TextInputGlobalPropertyPerContextInput"] = false
+        CFPreferencesSetAppValue(key, properties as CFDictionary, domain)
+        CFPreferencesAppSynchronize(domain)
+        InputMethodRuntime.preferences.set(true, forKey: done)
+        CFPreferencesAppSynchronize(bundleID as CFString)
+    }
+
     private static let previousKey = "previousInputSource"
 
     /// Remembers the keyboard source the user had before Tavi, so turning Tavi's

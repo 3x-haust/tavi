@@ -15,6 +15,7 @@ final class InputMethodServiceDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         server = IMKServer(name: InputSourceSetup.connectionName, bundleIdentifier: InputSourceSetup.bundleID)
         if CommandLine.arguments.contains("--settings") { _ = InputSourceSetup.openApplication() }
+        InputSourceSetup.keepOneSourceEverywhereOnce()
         scheduleUpdateChecks()
 
         let workspace = NSWorkspace.shared.notificationCenter

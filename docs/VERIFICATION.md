@@ -1,4 +1,4 @@
-# 1.1.1 build 6 development verification
+# 1.1.2 build 7 development verification
 
 Environment: Apple M5, arm64, macOS 27.0 (26A428), October 27, 2026.
 
@@ -21,7 +21,7 @@ Environment: Apple M5, arm64, macOS 27.0 (26A428), October 27, 2026.
   compilation is the type-checking authority for those diagnostics.
 
 The tests also cover Hangul composition, mixed words, three-confirmation learning,
-independent input sessions, correction, deletion, literal Escape, Enter
+independent input sessions, correction, deletion, Escape, Enter
 confirmation, shortcuts, paths, token bounds, tutorial progress and storage.
 The native editor check covers AppKit insertion, whole-token correction,
 selection and table multi-selection.

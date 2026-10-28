@@ -88,8 +88,8 @@ Tavi owns only its active marked composition. The user's own input-source switch
 key (whatever macOS is set to) toggles the composing word between Korean and its
 keys; there is no separate correction shortcut.
 Space confirms with a trailing space; Enter confirms an active composition
-without also submitting it. With no composition, Enter passes to the host.
-Escape restores literal keys; navigation and focus changes do not teach.
+and reaches the host too, so one press submits.
+Escape commits the word and reaches the host; Escape, navigation and focus changes do not teach.
 Backspace recomposes raw keys until empty, then passes through. Undo and paste
 remain the host editor's behavior; pasted content is not reinterpreted or learned.
 

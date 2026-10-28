@@ -20,11 +20,14 @@ Input Monitoring permission.
 3. Letter/number keys update `CompositionEngine`; `setMarkedText` sends the
    current candidate to the host's native composition area.
 4. Space commits the candidate and trailing space in one `insertText` call.
-   Enter with an active composition commits only that composition and consumes
-   the event. A subsequent Enter with no composition passes to the application.
-   In terminals this avoids inadvertently submitting a newly converted command.
+   Enter commits an active composition and passes on to the application, like any
+   input method. Ghostty encodes a key with the text committed during it as one or
+   the other, so there the return is inserted as text after the word, and Tab,
+   arrows and shortcuts commit the word after the key is consumed (press again).
+   With no text field (selectedRange not found, as in Finder's file list) keys pass
+   through without composing, so type-select works.
 5. Backspace removes a raw key and recomposes; with no active raw keys it passes
-   through. Escape commits the original literal keys without learning.
+   through. Escape commits the composition without learning and passes on, like Enter.
 6. Shortcuts and navigation finish composition without learning and pass through.
    The host owns selection, committed-text editing, undo and paste.
 7. The only correction key is the user's own input-source switch key (Caps Lock with
@@ -33,7 +36,10 @@ Input Monitoring permission.
    deferred 80 ms. If the source really changed, the word toggles between its Korean
    reading and its literal keys, uncommitted, and Tavi re-selects itself; otherwise it
    was a focus change and the word commits as usual. Without a composition the key
-   keeps its OS meaning. The input-method process also
+   keeps its OS meaning. On its first run the input-method process turns off macOS's
+   per-document input source (`TextInputGlobalPropertyPerContextInput`), once; windows
+   that never activate an app, such as Spotlight, would otherwise keep their own source.
+   The input-method process also
    undoes per-document source swaps that follow an app activation while Tavi was the
    user's last deliberate choice.
 8. Deactivation or a host-requested commit ends the session without learning.

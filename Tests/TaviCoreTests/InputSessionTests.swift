@@ -37,10 +37,10 @@ final class InputSessionTests: XCTestCase {
         XCTAssertEqual(continued.text, "hhhhhe")
     }
 
-    func testReturnConfirmsWithoutExecutingTerminalCommand() {
+    func testReturnConfirmsAndReachesTheHost() {
         var session = InputSession()
         for key in "dkssud" { _ = session.handle(.text(String(key))) }
-        XCTAssertEqual(session.handle(.enter), .commit("안녕", consumesEvent: true, evidence: nil))
+        XCTAssertEqual(session.handle(.enter), .commit("안녕", consumesEvent: false, evidence: nil))
         XCTAssertEqual(session.handle(.enter), .pass)
     }
 
@@ -54,10 +54,10 @@ final class InputSessionTests: XCTestCase {
         XCTAssertEqual(session.handle(.backspace), .pass)
     }
 
-    func testEscapeRestoresRawWithoutLearning() {
+    func testEscapeCommitsAndReachesTheHostWithoutLearning() {
         var session = InputSession()
         for key in "dkssud" { _ = session.handle(.text(String(key))) }
-        XCTAssertEqual(session.handle(.escape), .commit("dkssud", consumesEvent: true, evidence: nil))
+        XCTAssertEqual(session.handle(.escape), .commit("안녕", consumesEvent: false, evidence: nil))
         XCTAssertEqual(session.handle(.escape), .pass)
     }
 
