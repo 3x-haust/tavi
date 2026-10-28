@@ -16,8 +16,7 @@ if let index = CommandLine.arguments.firstIndex(of: "--render-setup"),
 if let index = CommandLine.arguments.firstIndex(of: "--check-update-archive"),
    CommandLine.arguments.indices.contains(index + 2) {
     let archive = URL(fileURLWithPath: CommandLine.arguments[index + 1])
-    let release = UpdateRelease(version: CommandLine.arguments[index + 2], archive: archive, sha256: nil)
-    do { print("UPDATE_ARCHIVE_OK \(try Updater.unpack(archive, as: release).path)"); exit(0) }
+    do { print("UPDATE_ARCHIVE_OK \(try Updater.unpack(archive, version: CommandLine.arguments[index + 2]).path)"); exit(0) }
     catch { fputs("UPDATE_ARCHIVE_FAILED: \(error)\n", stderr); exit(1) }
 }
 if CommandLine.arguments.contains("--check-editor") {

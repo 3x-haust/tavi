@@ -59,8 +59,10 @@ or the final application's memory footprint.
 
 ## Updates
 
-Release parsing and version ordering are unit-tested. A zip made with
-`ditto -c -k --keepParent dist/Tavi.app` unpacked and passed the bundle and
+Release parsing, version ordering, the required GitHub digest and the Ed25519
+signature check (tampered archive, another key, empty signature) are unit-tested.
+`tools/sign_update.swift` refuses a key that does not match `TaviUpdatePublicKey`.
+A zip made with `ditto -c -k --keepParent dist/Tavi.app` unpacked and passed the bundle and
 signature checks (`--check-update-archive`); a mismatched version was rejected.
 A background `--update` launch with nothing to update exited at once without UI.
 Settings shows the current version, an automatic-update switch (stored in the
