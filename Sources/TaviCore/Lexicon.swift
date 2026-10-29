@@ -103,9 +103,12 @@ struct Lexicon {
         // A Latin tail after Korean is the rarer order (particles follow English, not precede it), and the
         // English word lists hold Korean typed in the wrong mode (si = 냐, rjtl = 거시), so when the whole
         // reading is clean Korean (anjsi → 뭐냐, not 뭐si) the Korean wins unless the tail was learned.
-        func addSplit(_ text: String, _ score: Double, _ reason: String, latin: String, learned: Bool, koreanFirst: Bool = false) {
+        // A Korean word straight after English is rarer still: when the keys already read as clean Korean,
+        // the English head is a coincidence too (gotejsl → 햇더니, not got더니). So is a guessed name before
+        // a particle whose keys read better as Korean (skawkcjfja → 남자처럼, not skawk처럼; turksdl → turks이).
+        func addSplit(_ text: String, _ score: Double, _ reason: String, latin: String, learned: Bool, koreanFirst: Bool = false, weakHead: Bool = false) {
             let coincidental = completeKorean && !learned
-                && (koreanFirst || knownWholeKorean || koreanShifted || (stemScore >= 5 && latin.count <= 3))
+                && (koreanFirst || weakHead || knownWholeKorean || koreanShifted || (stemScore >= 5 && latin.count <= 3))
             add(text, coincidental ? min(score, koreanScore - 1) : score, reason)
         }
 
@@ -120,23 +123,25 @@ struct Lexicon {
                     || raw.first(where: \.isUppercase).map { !"QWERTOP".contains($0) } == true
                 let trustedHead = Self.model.isEnglishWord(head)
                     || Self.isAcronym(head) || learnedHead != nil || check?(head) == true
+                let headEnglishScore = Self.model.englishEvidence(head).score
                 let plausibleNewName = !trustedHead
                     && Self.suffixKeys.contains(tail) && head.count >= 3
                     && !Self.model.isKnownKorean(hangul)
-                    && Self.model.englishEvidence(head).score >= 2.8
+                    && headEnglishScore >= 2.8
                 let englishHead = trustedHead || plausibleNewName
                 if englishHead, allowsSplit {
                     let tailHangul = Hangul.compose(tail)
                     let spelling = learnedHead?.text ?? head
                     if Self.suffixes.contains(tailHangul) {
                         addSplit(spelling + tailHangul, (learnedHead == nil ? 12.5 : 30) + min(Double(head.count), 8) / 10,
-                                 "Latin + 조사", latin: head, learned: learnedHead != nil)
+                                 "Latin + 조사", latin: head, learned: learnedHead != nil,
+                                 weakHead: !trustedHead && Self.model.koreanScore(Hangul.compose(head)) > headEnglishScore + 0.5)
                         break
                     }
                     if Hangul.syllableCount(tailHangul) >= 2,
                        Self.model.isKnownKorean(tailHangul) || Self.model.koreanScore(tailHangul) >= 4.7 {
                         addSplit(spelling + tailHangul, 11.8 + min(Double(head.count), 8) / 10,
-                                 "Latin + 한국어", latin: head, learned: learnedHead != nil)
+                                 "Latin + 한국어", latin: head, learned: learnedHead != nil, weakHead: true)
                     }
                 }
 

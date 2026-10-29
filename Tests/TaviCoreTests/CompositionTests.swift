@@ -31,6 +31,10 @@ final class CompositionTests: XCTestCase {
         XCTAssertEqual(engine("anjsi").text, "뭐냐")
         XCTAssertEqual(engine("dlrjtl").text, "이거시")
         XCTAssertEqual(engine("tofeature").text, "새feature")
+        // A Korean word or particle after a fragment that reads better as Korean stays whole Korean.
+        XCTAssertEqual(engine("gotejsl").text, "햇더니")
+        XCTAssertEqual(engine("skawkcjfja").text, "남자처럼")
+        XCTAssertEqual(engine("turksdl").text, "turks이")
         XCTAssertTrue(engine("gksdud").candidates.contains { $0.text == "한dud" })
         XCTAssertEqual(engine("gitdmf").text, "git을")
         XCTAssertEqual(engine("slackdp").text, "slack에")

@@ -98,8 +98,11 @@ established count and replaces the spelling once it would fall below three.
 
 When lowercase keys (or only `Q/W/E/R/T/O/P` shifts) read as complete Hangul
 syllables, an English fragment inside them is treated as coincidence: splits
-such as `ah을` or `ehoT나` rank below the whole Korean reading (`모을`, `됐나`)
-and the switch key toggles between the whole Korean reading and the literal keys. Once a word displays as Korean, a weaker
+such as `ah을`, `ehoT나` or `got더니` rank below the whole Korean reading (`모을`,
+`됐나`, `햇더니`). A guessed name before a particle (not a listed English word)
+gives way the same way when its keys score better as Korean than as English
+(`skawk처럼` → `남자처럼`, while `turks이` still splits). Either way the
+switch key toggles between the whole Korean reading and the literal keys. Once a word displays as Korean, a weaker
 mid-word Latin preference does not flip it back (no `안 → 아ss → 안녀`). Raw keys are matched
 exactly so shifted Dubeolsik keys such as `Q/W/E/R/T/O/P` retain their distinct
 jamo. Case-insensitive raw matching is allowed only when the raw form and the
@@ -131,14 +134,14 @@ with no personal words or previous token, and must commit exactly:
 - `mixed`: 1,000 further level 40/50 words, each with a Korean particle (`word를`).
 
 The words are held out of the word lists only; trigram and syllable counts come
-from the same corpora. The October 28, 2026 run of the shipped model:
+from the same corpora. The October 29, 2026 run of the shipped model:
 
 | Set | Accuracy |
 | --- | ---: |
 | english | 96.8% |
-| korean | 97.6% |
-| mixed | 94.6% |
-| all 3,000 | 96.3% |
+| korean | 99.2% |
+| mixed | 94.4% |
+| all 3,000 | 96.8% |
 
 The October 27, 2026 release-build run on the development Apple M5 measured
 10,000 warm core decisions and commits:
