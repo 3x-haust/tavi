@@ -55,7 +55,7 @@ final class TaviInputController: IMKInputController {
     /// focus change and the word is committed as usual. When Caps Lock is the switch key
     /// and reaches Tavi instead, it toggles directly in `handle`.
     private func end(on client: IMKTextInput) {
-        guard !session.raw.isEmpty, runtime.enabled else {
+        guard session.isComposing, runtime.enabled else {
             _ = apply(session.finish(learn: false), to: client)
             if runtime.enabled, Self.lastInputWasAKey { keepAfterEmptySwitch() }
             return
@@ -117,7 +117,7 @@ final class TaviInputController: IMKInputController {
         if event.type == .flagsChanged {
             guard event.keyCode == 57 else { return false }
             Self.log.notice("caps lock keys=\(self.session.raw.count) switches=\(LanguageKey.capsLockSwitches)")
-            guard LanguageKey.capsLockSwitches, !session.raw.isEmpty, runtime.enabled else { return false }
+            guard LanguageKey.capsLockSwitches, session.isComposing, runtime.enabled else { return false }
             // One press can arrive twice a few milliseconds apart; a second toggle would undo the first.
             guard Date().timeIntervalSince(capsToggle) > 0.05 else { return true }
             capsToggle = Date()
@@ -195,7 +195,7 @@ final class TaviInputController: IMKInputController {
     override func composedString(_ sender: Any!) -> Any! { session.text as NSString }
 
     override func originalString(_ sender: Any!) -> NSAttributedString! {
-        NSAttributedString(string: session.raw)
+        NSAttributedString(string: session.markedRaw)
     }
 
     /// Tavi's only menu: the input-source menu in the menu bar.

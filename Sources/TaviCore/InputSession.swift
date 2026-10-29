@@ -13,8 +13,20 @@ public struct InputSession {
 
     private var engine = CompositionEngine()
     private var literalUntilBoundary = false
+    /// Digits that start a word go straight into the document, as with the system's Korean
+    /// input: a page that formats a field as it is typed (010-1234-5678) would otherwise
+    /// rewrite marked text and double it. They still lead the word, so 3ro reads as 3개.
+    private var typedAhead = 0
     public var raw: String { engine.raw }
-    public var text: String { engine.text }
+    /// The marked part of the word: the reading without the digits already typed.
+    public var text: String {
+        let typed = raw.prefix(typedAhead)
+        return engine.text.hasPrefix(typed)
+            ? String(engine.text.dropFirst(typedAhead)) : String(raw.dropFirst(typedAhead))
+    }
+    /// The keys behind `text`.
+    public var markedRaw: String { String(raw.dropFirst(typedAhead)) }
+    public var isComposing: Bool { raw.count > typedAhead }
     /// Set by the language key while nothing is composed; the next word is typed in it.
     public private(set) var nextLanguage: InputLanguage?
 
@@ -28,6 +40,12 @@ public struct InputSession {
         switch key {
         case .backspace:
             guard !raw.isEmpty else { return .pass }
+            guard isComposing else {
+                // The digit is already in the document, where the host deletes it.
+                engine.backspace()
+                typedAhead -= 1
+                return .pass
+            }
             engine.backspace()
             return .mark(text)
         case .space:
@@ -49,8 +67,23 @@ public struct InputSession {
                 }
                 return commit(suffix: key, consumesEvent: true, learn: true)
             }
+            if !isComposing, key.allSatisfy(\.isNumber) {
+                if raw.count == 64 {
+                    _ = engine.cancel()
+                    typedAhead = 0
+                }
+                engine.append(key)
+                typedAhead += 1
+                if let language = nextLanguage {
+                    engine.lock(to: language)
+                    nextLanguage = nil
+                }
+                return .commit(key, consumesEvent: true, evidence: nil)
+            }
             if raw.count == 64 {
-                let original = engine.cancel()
+                let original = markedRaw
+                _ = engine.cancel()
+                typedAhead = 0
                 literalUntilBoundary = true
                 return .commit(original + key, consumesEvent: true, evidence: nil)
             }
@@ -81,8 +114,8 @@ public struct InputSession {
     /// its Korean reading and its literal keys without committing; Space confirms (and
     /// teaches) the choice. It is the only correction key.
     public mutating func toggleLanguage() -> Update {
-        guard !raw.isEmpty else { return .pass }
-        engine.lock(to: text == Hangul.compose(raw) ? .latin : .korean)
+        guard isComposing else { return .pass }
+        engine.lock(to: engine.text == Hangul.compose(raw) ? .latin : .korean)
         return .mark(text)
     }
 
@@ -94,10 +127,15 @@ public struct InputSession {
     private mutating func commit(suffix: String, consumesEvent: Bool, learn: Bool) -> Update {
         guard !raw.isEmpty else { return .pass }
         let original = raw
+        let shown = text
+        let composing = isComposing
         let result = engine.commit(learn: learn)
-        let evidence = learn ? result.correction ?? LearningEvidence.typedWord(
+        typedAhead = 0
+        // Digits alone are already typed; there is nothing to insert or learn.
+        guard composing || !suffix.isEmpty else { return .pass }
+        let evidence = learn && composing ? result.correction ?? LearningEvidence.typedWord(
             result.text, automaticallyChanged: original != result.text
         ) : nil
-        return .commit(result.text + suffix, consumesEvent: consumesEvent, evidence: evidence)
+        return .commit(shown + suffix, consumesEvent: consumesEvent, evidence: evidence)
     }
 }

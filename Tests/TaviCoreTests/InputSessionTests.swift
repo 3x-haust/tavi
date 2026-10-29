@@ -109,10 +109,36 @@ final class InputSessionTests: XCTestCase {
         var session = InputSession()
         for key in "3Xhaust" { _ = session.handle(.text(String(key))) }
         XCTAssertEqual(session.handle(.space),
-                       .commit("3Xhaust ", consumesEvent: true,
+                       .commit("Xhaust ", consumesEvent: true,
                                evidence: LearnedWord(raw: "3xhaust", text: "3Xhaust", confirmations: 1)))
         for key in "dkssud" { _ = session.handle(.text(String(key))) }
         XCTAssertEqual(session.handle(.space), .commit("안녕 ", consumesEvent: true, evidence: nil))
+    }
+
+    func testDigitsBeforeAWordAreTypedNotMarked() {
+        // A phone field that inserts dashes as digits arrive must never see marked text.
+        var session = InputSession()
+        for key in "01012345678" {
+            XCTAssertEqual(session.handle(.text(String(key))), .commit(String(key), consumesEvent: true, evidence: nil))
+        }
+        XCTAssertFalse(session.isComposing)
+        XCTAssertEqual(session.handle(.backspace), .pass)
+        XCTAssertEqual(session.toggleLanguage(), .pass)
+        XCTAssertEqual(session.handle(.enter), .pass)
+        XCTAssertTrue(session.raw.isEmpty)
+        // The digits still lead the word they start.
+        for key in "3ro" { _ = session.handle(.text(String(key))) }
+        XCTAssertEqual(session.text, "개")
+        XCTAssertEqual(session.handle(.backspace), .mark("r"))
+        XCTAssertEqual(session.handle(.backspace), .mark(""))
+        XCTAssertEqual(session.handle(.backspace), .pass)
+        for key in "3ro" { _ = session.handle(.text(String(key))) }
+        XCTAssertEqual(session.handle(.space), .commit("개 ", consumesEvent: true, evidence: nil))
+        for key in "4th" { _ = session.handle(.text(String(key))) }
+        XCTAssertEqual(session.text, "th")
+        guard case .commit("th-", consumesEvent: true, _) = session.handle(.text("-")) else {
+            return XCTFail("A word after typed digits inserts only its marked part")
+        }
     }
 
     func testCodeAndURLsRemainLiteralAfterSyntax() {
