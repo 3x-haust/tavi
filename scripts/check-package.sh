@@ -90,6 +90,8 @@ for bundle in "$app" "$helper"; do
     expect_dir "$bundle/Contents/Resources/Tavi_TaviCore.bundle"
 done
 expect_file "$app/Contents/Resources/setup-guide.mp4"
+expect_file "$helper/Contents/Resources/TaviMenuIcon.pdf"
+expect_value "$helper_plist" tsInputMethodIconFileKey TaviMenuIcon.pdf
 [[ ! -e "$helper/Contents/Resources/setup-guide.mp4" ]] ||
     fail "setup-guide.mp4 must only be in the parent app"
 

@@ -32,6 +32,13 @@
 	<true/>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>TISIconIsTemplate</key>
+	<true/>
+	<key>TISIconLabels</key>
+	<dict>
+		<key>Primary</key>
+		<string>t</string>
+	</dict>
 	<key>TISInputSourceID</key>
 	<string>dev.3xhaust.inputmethod.tavi</string>
 	<key>TISIntendedLanguage</key>
@@ -44,6 +51,6 @@
 		<string>Latn</string>
 	</array>
 	<key>tsInputMethodIconFileKey</key>
-	<string>Tavi.icns</string>
+	<string>TaviMenuIcon.pdf</string>
 </dict>
 </plist>
