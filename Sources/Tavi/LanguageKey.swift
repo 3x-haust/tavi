@@ -2,8 +2,11 @@ import AppKit
 
 /// Names the key this Mac switches input sources with, which is also Tavi's correction key.
 enum LanguageKey {
-    /// Keyboard Settings' "Caps Lock switches to and from ABC".
-    static var capsLockSwitches: Bool { UserDefaults.standard.integer(forKey: "TISRomanSwitchState") == 1 }
+    /// Keyboard Settings' "Caps Lock switches to and from ABC". macOS stores it only after the
+    /// user changes it; until then it is on, as it is by default with a Korean source added.
+    static var capsLockSwitches: Bool {
+        (UserDefaults.standard.object(forKey: "TISRomanSwitchState") as? Int ?? 1) == 1
+    }
 
     static var name: String {
         if capsLockSwitches { return "한/영(Caps Lock) 키" }
