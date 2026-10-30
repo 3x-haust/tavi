@@ -1,8 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-swift build -c release
-bin="$(swift build -c release --show-bin-path)"
+# Universal: Apple silicon and Intel Macs.
+arch_flags=(--arch arm64 --arch x86_64)
+swift build -c release "${arch_flags[@]}"
+bin="$(swift build -c release "${arch_flags[@]}" --show-bin-path)"
 app="dist/Tavi.app"
 helper="$app/Contents/Helpers/TaviInputMethod.app"
 signing_identity="${SIGNING_IDENTITY:--}"
