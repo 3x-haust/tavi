@@ -16,6 +16,8 @@ final class TaviInputController: IMKInputController {
     private var keystrokes = 0
     /// The client has shown this word as marked text, so it can be asked whether it still holds it.
     private var clientMarks = false
+    /// Where the client put its caret after the last marked word, to notice a click moving it.
+    private var markSelection = NSRange(location: NSNotFound, length: 0)
     /// A Caps Lock that toggled here may also switch the source; that is the same press.
     private var capsToggle = Date.distantPast
     private static let log = Logger(subsystem: "dev.3xhaust.inputmethod.tavi", category: "language-key")
@@ -85,6 +87,18 @@ final class TaviInputController: IMKInputController {
                     Self.log.notice("end: client already committed the word")
                     self.clientMarks = false
                     return
+                }
+                // A click in Aside moves the caret into or past the word yet still reports it as marked,
+                // though it's already in the text: the word goes back over its own range, not at the caret.
+                if self.clientMarks, case .commit(let text, _, let evidence) = update {
+                    let marked = client.markedRange(), caret = client.selectedRange()
+                    if caret != self.markSelection, caret != marked, caret != NSRange(location: NSMaxRange(marked), length: 0) {
+                        Self.log.notice("end: the caret left the word; committing over it")
+                        self.clientMarks = false
+                        client.insertText(text, replacementRange: marked)
+                        self.runtime.confirm(evidence)
+                        return
+                    }
                 }
                 _ = self.apply(update, to: client)
             }
@@ -257,6 +271,7 @@ final class TaviInputController: IMKInputController {
             )
             // Some clients never report their marked text; only one that does is trusted to have taken it.
             if !clientMarks { clientMarks = Self.holdsMarkedText(client) }
+            markSelection = client.selectedRange()
             return true
         case .commit(let text, let consumesEvent, let evidence):
             clientMarks = false
