@@ -131,6 +131,8 @@ final class TaviInputController: IMKInputController {
                 self.resuming = false
                 return
             }
+            // A Caps Lock that already set the next word's language here is the same press.
+            guard Date().timeIntervalSince(self.capsToggle) > 0.4 else { return }
             self.session.toggleNextLanguage(fallback: target)
             Self.log.notice("empty switch next=\(self.session.nextLanguage?.rawValue ?? "automatic", privacy: .public)")
         }
@@ -142,10 +144,17 @@ final class TaviInputController: IMKInputController {
         if event.type == .flagsChanged {
             guard event.keyCode == 57 else { return false }
             Self.log.notice("caps lock keys=\(self.session.raw.count) switches=\(LanguageKey.capsLockSwitches)")
-            guard LanguageKey.capsLockSwitches, session.isComposing, runtime.enabled else { return false }
+            guard LanguageKey.capsLockSwitches, runtime.enabled else { return false }
             // One press can arrive twice a few milliseconds apart; a second toggle would undo the first.
             guard Date().timeIntervalSince(capsToggle) > 0.05 else { return true }
             capsToggle = Date()
+            guard session.isComposing else {
+                // Before a word macOS often keeps Tavi selected, so the press sets the next word's language
+                // here, as switching to ABC would.
+                session.toggleNextLanguage(fallback: .latin)
+                Self.log.notice("caps lock next=\(self.session.nextLanguage?.rawValue ?? "automatic", privacy: .public)")
+                return false
+            }
             return apply(session.toggleLanguage(), to: client)
         }
         guard event.type == .keyDown else { return false }
