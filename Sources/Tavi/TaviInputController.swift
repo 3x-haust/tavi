@@ -14,6 +14,8 @@ final class TaviInputController: IMKInputController {
     private var deciding = false
     private var resuming = false
     private var keystrokes = 0
+    /// The client has shown this word as marked text, so it can be asked whether it still holds it.
+    private var clientMarks = false
     /// A Caps Lock that toggled here may also switch the source; that is the same press.
     private var capsToggle = Date.distantPast
     private static let log = Logger(subsystem: "dev.3xhaust.inputmethod.tavi", category: "language-key")
@@ -28,6 +30,7 @@ final class TaviInputController: IMKInputController {
             return
         }
         session = InputSession()
+        clientMarks = false
         runtime.reloadWords()
         // Choosing Tavi while its automatic input is off means the user wants it back on.
         if !runtime.enabled, InputSourceSetup.isSelected { runtime.enabled = true }
@@ -75,7 +78,15 @@ final class TaviInputController: IMKInputController {
                 }
                 self.resuming = true
             } else if typed == self.keystrokes || !InputSourceSetup.isSelected {
-                _ = self.apply(self.session.finish(learn: false), to: client)
+                let update = self.session.finish(learn: false)
+                // A click in Chrome, Aside or another Chromium app commits the marked word there before
+                // Tavi hears of it; inserting the word again would type it twice where the click landed.
+                if self.clientMarks, !Self.holdsMarkedText(client) {
+                    Self.log.notice("end: client already committed the word")
+                    self.clientMarks = false
+                    return
+                }
+                _ = self.apply(update, to: client)
             }
         }
     }
@@ -189,6 +200,12 @@ final class TaviInputController: IMKInputController {
         return owner == client.bundleIdentifier()
     }
 
+    /// Whether the client still shows a marked word; one it committed on its own reports none.
+    private static func holdsMarkedText(_ client: IMKTextInput) -> Bool {
+        let range = client.markedRange()
+        return range.location != NSNotFound && range.length > 0
+    }
+
     /// Terminals that encode a key event with the text an input method commits during it as one or the other.
     private static let keyDropsCommittedText: Set<String> = ["com.mitchellh.ghostty"]
 
@@ -238,8 +255,11 @@ final class TaviInputController: IMKInputController {
                 text, selectionRange: NSRange(location: (text as NSString).length, length: 0),
                 replacementRange: replacement
             )
+            // Some clients never report their marked text; only one that does is trusted to have taken it.
+            if !clientMarks { clientMarks = Self.holdsMarkedText(client) }
             return true
         case .commit(let text, let consumesEvent, let evidence):
+            clientMarks = false
             client.insertText(text, replacementRange: replacement)
             runtime.confirm(evidence)
             return consumesEvent
