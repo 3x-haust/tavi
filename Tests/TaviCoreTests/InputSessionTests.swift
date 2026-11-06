@@ -58,6 +58,24 @@ final class InputSessionTests: XCTestCase {
         XCTAssertEqual(session.handle(.enter), .pass)
     }
 
+    func testLearnedHeadKeepsFinalConsonantThroughEditingAndCommit() {
+        var session = InputSession()
+        session.setWords([LearnedWord(raw: "eh", text: "도", confirmations: 3)])
+        for key in "ehfdkrkekrk" { _ = session.handle(.text(String(key))) }
+        XCTAssertEqual(session.text, "돌아가다가")
+        XCTAssertEqual(session.handle(.backspace), .mark("돌아가닥"))
+        XCTAssertEqual(session.handle(.text("k")), .mark("돌아가다가"))
+        XCTAssertEqual(session.toggleLanguage(), .mark("ehfdkrkekrk"))
+        XCTAssertEqual(session.toggleLanguage(), .mark("돌아가다가"))
+        XCTAssertEqual(session.handle(.space), .commit("돌아가다가 ", consumesEvent: true, evidence: nil))
+        for key in "hello" { _ = session.handle(.text(String(key))) }
+        XCTAssertEqual(session.handle(.enter), .commit("hello", consumesEvent: false, evidence: nil))
+        XCTAssertEqual(session.handle(.text("ㄹ")), .pass)
+        session.toggleNextLanguage(fallback: .korean)
+        for key in "zz" { _ = session.handle(.text(String(key))) }
+        XCTAssertEqual(session.text, "ㅋㅋ")
+    }
+
     func testLanguageKeyTogglesTheComposingWordWithoutCommitting() {
         var session = InputSession()
         for key in "gksdud" { _ = session.handle(.text(String(key))) }

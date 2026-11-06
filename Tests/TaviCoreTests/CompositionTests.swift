@@ -240,6 +240,46 @@ final class CompositionTests: XCTestCase {
         }
     }
 
+    func testLearnedKoreanHeadDoesNotDetachFinalConsonant() {
+        for (head, raw, expected) in [
+            ("도", "ehfdkrkekrk", "돌아가다가"),
+            ("가", "rkskekfk", "가나다라"),
+            ("이", "dlfrekrk", "읽다가"),
+            ("아", "dkswdkTekrk", "앉았다가"),
+        ] {
+            for learned in [[], [LearnedWord(raw: Hangul.keys(for: head), text: head, confirmations: 3)]] {
+                var value = CompositionEngine()
+                value.words = learned
+                type(raw, into: &value)
+                XCTAssertEqual(Hangul.compose(raw), expected)
+                XCTAssertEqual(value.text, expected, "learned=\(learned): \(value.candidates)")
+                XCTAssertFalse(value.candidates.contains {
+                    !$0.text.contains(where: \.isASCII) && Hangul.jamoCount($0.text) > 0
+                }, raw)
+            }
+        }
+    }
+
+    func testFinalConsonantBoundaryPreservesExplicitJamoAndLearnedSpelling() {
+        for (raw, expected) in [("zz", "ㅋㅋ"), ("gg", "ㅎㅎ"), ("ehff", "돌ㄹ")] {
+            var value = engine(raw)
+            value.lock(to: .korean)
+            XCTAssertEqual(value.text, expected)
+            XCTAssertEqual(value.commit().text, expected)
+        }
+        for (head, spelling, raw, expected) in [
+            ("ehfdkrkekrk", "도ㄹ아가다가", "ehfdkrkekrk", "도ㄹ아가다가"),
+            ("eh", "도", "eh", "도"),
+            ("eh", "EH", "ehfmf", "EH를"),
+            ("eh", "별명", "ehrkwlrh", "별명가지고"),
+        ] {
+            var value = CompositionEngine()
+            value.words = [LearnedWord(raw: head, text: spelling, confirmations: 3)]
+            type(raw, into: &value)
+            XCTAssertEqual(value.text, expected)
+        }
+    }
+
     private func engine(_ raw: String) -> CompositionEngine {
         var result = CompositionEngine()
         type(raw, into: &result)

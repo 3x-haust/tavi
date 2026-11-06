@@ -44,6 +44,9 @@ enum EditorCheck {
         view.insertText("replace", replacementRange: view.selectedRange())
         precondition(view.string == "replace", "Selected text replacement failed")
         checkShiftedKorean(in: view, window: window)
+        try store.set(raw: "eh", text: "도")
+        view.refreshWords()
+        checkFinalConsonant(in: view, window: window)
         view.learning = true
         var learned = ""
         for _ in 0..<3 {
@@ -102,6 +105,24 @@ enum EditorCheck {
             precondition(view.string == committed, "Space changed corrected text: \(view.string)")
         }
         precondition(view.string == "짜증나게 써볼게 새끼 hello ", "Corrected sentence was not preserved")
+    }
+
+    private static func checkFinalConsonant(in view: InlineEditor, window: NSWindow) {
+        view.selectAll(nil)
+        view.insertText("", replacementRange: view.selectedRange())
+        let codes: [Character: UInt16] = ["e": 14, "h": 4, "f": 3, "d": 2, "k": 40, "r": 15]
+        for key in "ehfdkrkekrk" {
+            send(key: String(key), code: codes[key]!, to: view, in: window)
+        }
+        precondition(view.string == "돌아가다가", "Learned head detached a final consonant: \(view.string)")
+        send(key: "\u{7f}", code: 51, to: view, in: window)
+        precondition(view.string == "돌아가닥", "Backspace broke final consonant composition")
+        send(key: "k", code: 40, to: view, in: window)
+        send(key: " ", code: 49, to: view, in: window)
+        send(key: "d", code: 2, to: view, in: window)
+        send(key: "k", code: 40, to: view, in: window)
+        precondition(view.string == "돌아가다가 아", "Next key changed the committed word: \(view.string)")
+        view.finish(learn: false)
     }
 
     private static func send(
