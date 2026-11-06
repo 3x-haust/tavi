@@ -144,13 +144,17 @@ struct Lexicon {
                 if englishHead, allowsSplit, Self.startsSyllable(tail) {
                     let tailHangul = Hangul.compose(tail)
                     let spelling = learnedHead?.text ?? head
-                    if Self.suffixes.contains(tailHangul) {
+                    // A learned Korean head still shares syllables with the following keys.
+                    // Do not detach a final consonant (도 + ㄹ아가다가 instead of 돌아가다가).
+                    let preservesKoreanBoundary = !Self.isKoreanText(spelling)
+                        || Hangul.compose(head) + tailHangul == hangul
+                    if preservesKoreanBoundary, Self.suffixes.contains(tailHangul) {
                         addSplit(spelling + tailHangul, (learnedHead == nil ? 12.5 : 30) + min(Double(head.count), 8) / 10,
                                  "Latin + 조사", latin: head, learned: learnedHead != nil,
                                  weakHead: !trustedHead && Self.model.koreanScore(Hangul.compose(head)) > headEnglishScore + 0.5)
                         break
                     }
-                    if Hangul.syllableCount(tailHangul) >= 2,
+                    if preservesKoreanBoundary, Hangul.syllableCount(tailHangul) >= 2,
                        Self.model.isKnownKorean(tailHangul) || Self.model.koreanScore(tailHangul) >= 4.7 {
                         addSplit(spelling + tailHangul, 11.8 + min(Double(head.count), 8) / 10,
                                  "Latin + 한국어", latin: head, learned: learnedHead != nil, weakHead: true)
