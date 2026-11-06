@@ -11,6 +11,53 @@ final class InputSessionTests: XCTestCase {
         XCTAssertEqual(session.handle(.space), .pass)
     }
 
+    func testShiftedKoreanCorrectionSurvivesBoundariesAndNextWord() {
+        var session = InputSession()
+        var committed = ""
+        for (raw, expected) in [
+            ("WKwmdskrp", "짜증나게"), ("TJqhfrp", "써볼게"),
+            ("toRL", "새끼"), ("hello", "hello"), ("APIfmf", "API를"),
+        ] {
+            for key in raw { _ = session.handle(.text(String(key))) }
+            XCTAssertEqual(session.text, expected)
+            guard case .commit(let text, consumesEvent: true, _) = session.handle(.space) else {
+                return XCTFail("Space should confirm \(expected)")
+            }
+            XCTAssertEqual(text, expected + " ")
+            committed += text
+        }
+        XCTAssertEqual(committed, "짜증나게 써볼게 새끼 hello API를 ")
+    }
+
+    func testShiftedKoreanPreservesIdentifierAndAcronymCommits() {
+        for (raw, expected) in [
+            ("goTo", "goTo"), ("toRTL", "toRTL"),
+            ("WPFfmf", "WPF를"), ("TLSfmf", "TLS를"), ("RHELdptj", "RHEL에서"),
+        ] {
+            var session = InputSession()
+            for key in raw { _ = session.handle(.text(String(key))) }
+            guard case .commit(let text, consumesEvent: true, _) = session.handle(.space) else {
+                return XCTFail("Space should confirm \(expected)")
+            }
+            XCTAssertEqual(text, expected + " ", raw)
+        }
+    }
+
+    func testShiftedKoreanCorrectionPreservesEditingAndExplicitLanguage() {
+        var session = InputSession()
+        for key in "toRL" { _ = session.handle(.text(String(key))) }
+        _ = session.handle(.backspace)
+        XCTAssertEqual(session.handle(.text("L")), .mark("새끼"))
+        XCTAssertEqual(session.toggleLanguage(), .mark("toRL"))
+        XCTAssertEqual(session.toggleLanguage(), .mark("새끼"))
+        for key in "fmf" { _ = session.handle(.text(String(key))) }
+        XCTAssertEqual(session.text, "새끼를")
+        guard case .commit("새끼를", consumesEvent: false, _) = session.handle(.enter) else {
+            return XCTFail("Enter should commit the corrected word and reach the host")
+        }
+        XCTAssertEqual(session.handle(.enter), .pass)
+    }
+
     func testLanguageKeyTogglesTheComposingWordWithoutCommitting() {
         var session = InputSession()
         for key in "gksdud" { _ = session.handle(.text(String(key))) }

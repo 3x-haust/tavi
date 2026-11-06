@@ -96,8 +96,9 @@ counting (up to 999); the learned score is `40 + min(log2(count), 8)`, so a
 long-used spelling outranks newer learned rules. A contrary choice halves an
 established count and replaces the spelling once it would fall below three.
 
-When lowercase keys (or only `Q/W/E/R/T/O/P` shifts) read as complete Hangul
-syllables, an English fragment inside them is treated as coincidence: splits
+When lowercase keys, `Q/W/E/R/T/O/P` shifts, or a doubled consonant followed
+by shifted vowels read as complete Hangul syllables, an English fragment inside
+them is treated as coincidence: splits
 such as `ah을`, `ehoT나` or `got더니` rank below the whole Korean reading (`모을`,
 `됐나`, `햇더니`). A guessed name before a particle (not a listed English word)
 gives way the same way when its keys score better as Korean than as English
@@ -105,7 +106,14 @@ gives way the same way when its keys score better as Korean than as English
 switch key toggles between the whole Korean reading and the literal keys. Once a word displays as Korean, a weaker
 mid-word Latin preference does not flip it back (no `안 → 아ss → 안녀`). Raw keys are matched
 exactly so shifted Dubeolsik keys such as `Q/W/E/R/T/O/P` retain their distinct
-jamo. Case-insensitive raw matching is allowed only when the raw form and the
+jamo. Keeping Shift held through the vowels of one syllable still counts as
+Korean input (`WK` → `짜`, `TJ` → `써`, `RL` → `끼`). Runs with additional
+consonants keep their acronym evidence (`WPF를`, `TLS를`, `RHEL에서`). In a
+mixed-case token, a complete shifted Korean reading takes precedence over an
+unknown English guess, except when known English words on both sides of a
+capital indicate an identifier (`goTo`). Known English words, standalone acronyms
+and learned spellings retain their protection.
+Case-insensitive raw matching is allowed only when the raw form and the
 learned output are both ASCII-letter spellings. Tavi never guesses a new output
 casing.
 

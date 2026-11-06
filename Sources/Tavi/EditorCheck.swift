@@ -43,6 +43,7 @@ enum EditorCheck {
         precondition(view.selectedRange().length == (view.string as NSString).length, "Control+A failed")
         view.insertText("replace", replacementRange: view.selectedRange())
         precondition(view.string == "replace", "Selected text replacement failed")
+        checkShiftedKorean(in: view, window: window)
         view.learning = true
         var learned = ""
         for _ in 0..<3 {
@@ -76,6 +77,31 @@ enum EditorCheck {
         precondition(table.selectedRowIndexes.count == 3, "Table Control+A failed")
         window.close()
         print("EDITOR_CHECK_PASSED")
+    }
+
+    private static func checkShiftedKorean(in view: InlineEditor, window: NSWindow) {
+        view.selectAll(nil)
+        view.insertText("", replacementRange: view.selectedRange())
+        let codes: [Character: UInt16] = [
+            "w": 13, "k": 40, "m": 46, "d": 2, "s": 1, "r": 15, "p": 35,
+            "t": 17, "j": 38, "q": 12, "h": 4, "f": 3, "o": 31, "l": 37, "e": 14,
+        ]
+        var committed = ""
+        for (raw, expected) in [
+            ("WKwmdskrp", "짜증나게"), ("TJqhfrp", "써볼게"),
+            ("toRL", "새끼"), ("hello", "hello"),
+        ] {
+            for key in raw {
+                let code = codes[Character(String(key).lowercased())]!
+                send(key: String(key), code: code, modifiers: key.isUppercase ? [.shift] : [], to: view, in: window)
+                precondition(view.string.hasPrefix(committed), "Next key changed committed text")
+            }
+            precondition(view.string == committed + expected, "Shifted composition failed: \(view.string)")
+            send(key: " ", code: 49, to: view, in: window)
+            committed += expected + " "
+            precondition(view.string == committed, "Space changed corrected text: \(view.string)")
+        }
+        precondition(view.string == "짜증나게 써볼게 새끼 hello ", "Corrected sentence was not preserved")
     }
 
     private static func send(

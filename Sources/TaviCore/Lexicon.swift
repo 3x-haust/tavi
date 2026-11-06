@@ -60,10 +60,24 @@ struct Lexicon {
         let wholeKoreanWord = Hangul.jamoCount(hangul) == 0 && Self.model.isKnownKorean(hangul)
         var englishScore = english.score
         var koreanScore = Self.model.koreanScore(hangul)
-        let koreanShift = raw.contains(where: \.isLowercase)
-            && raw.first(where: \.isUppercase).map { "QWERTOP".contains($0) } == true
+        // Shift may stay down through a vowel (WK → 짜, TJ → 써, RL → 끼),
+        // but a run containing further consonants can be an acronym (WPF, TLS, RHEL).
+        let koreanShifted = raw.contains(where: \.isUppercase)
+            && raw.split(whereSeparator: { !$0.isUppercase }).allSatisfy(Self.isKoreanShift)
+        let koreanShift = koreanShifted && raw.contains(where: \.isLowercase)
             && raw.allSatisfy { $0.isASCII && $0.isLetter }
             && Hangul.jamoCount(hangul) == 0
+        // Known words on both sides of a capital are evidence for an identifier (goTo),
+        // even when the whole identifier is absent from the English word list.
+        let knownCamelCase = raw.firstIndex(where: \.isUppercase).map { split in
+            split != raw.startIndex && Self.model.isEnglishWord(String(raw[..<split]))
+                && Self.model.isEnglishWord(String(raw[split...]))
+        } ?? false
+        // A complete shifted Korean reading is stronger than an unknown Latin guess,
+        // not than English words, identifiers, acronyms or learned spellings.
+        if koreanShift, english.tier == .unknown, !knownCamelCase {
+            koreanScore = max(koreanScore, englishScore + 2)
+        }
         if Self.isStructuredLatin(raw), !koreanShift {
             englishScore = max(englishScore, 14)
         } else if Self.isAcronym(raw) {
@@ -95,8 +109,6 @@ struct Lexicon {
         // not evidence against Korean, so it must not let a fragment (아ss) win mid-word.
         let pending = hangul.last.map { Hangul.initials.contains($0) } == true && hangul.count > 1
         let stem = pending ? String(hangul.dropLast()) : hangul
-        // Shift on Q/W/E/R/T/O/P types a doubled consonant or vowel (ehoTsk → 됐나), not a capital.
-        let koreanShifted = raw.contains(where: \.isUppercase) && raw.allSatisfy { !$0.isUppercase || "QWERTOP".contains($0) }
         let completeKorean = Hangul.jamoCount(stem) == 0 && (koreanShifted || !raw.contains(where: \.isUppercase))
         let stemScore = pending ? Self.model.koreanScore(stem) : koreanScore
         let knownWholeKorean = Self.model.isKnownKorean(stem)
@@ -175,6 +187,16 @@ struct Lexicon {
         return zip(ordered, weights).map { item, weight in
             Candidate(text: item.text, reason: item.reason, confidence: total > 0 ? weight / total : 0)
         }
+    }
+
+    private static func isKoreanShift(_ run: Substring) -> Bool {
+        if run.allSatisfy({ "QWERTOP".contains($0) }) { return true }
+        guard let first = run.first, "QWERT".contains(first),
+              run.dropFirst().allSatisfy({ key in
+                  let jamo = Hangul.mapping[key] ?? Hangul.mapping[Character(String(key).lowercased())]
+                  return jamo.map { Hangul.vowels.contains($0) } == true
+              }) else { return false }
+        return Hangul.compose(String(run)).count == 1
     }
 
     /// Korean after a head starts on a consonant key. A vowel key would join the head's last

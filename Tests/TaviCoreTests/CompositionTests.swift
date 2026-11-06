@@ -56,6 +56,54 @@ final class CompositionTests: XCTestCase {
         XCTAssertEqual(engine("commit").text, "commit")
     }
 
+    func testShiftHeldThroughFollowingVowelsKeepsWholeKoreanReading() {
+        for (raw, expected) in [
+            ("WKwmdskrp", "짜증나게"), ("TJqhfrp", "써볼게"), ("toRL", "새끼"),
+            ("Wkwmdskrp", "짜증나게"), ("Tjqhfrp", "써볼게"), ("toRl", "새끼"),
+        ] {
+            XCTAssertEqual(Hangul.compose(raw), expected, raw)
+            let value = engine(raw)
+            XCTAssertEqual(value.text, expected, "\(raw): \(value.candidates)")
+        }
+    }
+
+    func testShiftCorrectionPreservesEnglishAndMixedWords() {
+        for (raw, expected) in [
+            ("garden", "garden"), ("TEST", "TEST"), ("REST", "REST"),
+            ("API", "API"), ("PDF", "PDF"), ("URL", "URL"), ("WK", "WK"), ("TJ", "TJ"),
+            ("parseJSON2", "parseJSON2"), ("getURL", "getURL"),
+            ("APIfmf", "API를"), ("PDFvkdlf", "PDF파일"), ("OKfmf", "OK를"),
+        ] {
+            XCTAssertEqual(engine(raw).text, expected, raw)
+        }
+    }
+
+    func testShiftedKoreanDoesNotOverrideCodeIdentifiers() {
+        for raw in ["goTo", "toRTL"] {
+            let value = engine(raw)
+            XCTAssertEqual(value.text, raw, "\(raw): \(value.candidates)")
+        }
+    }
+
+    func testShiftedKoreanPreservesAcronymsWithParticles() {
+        for (raw, expected) in [("WPFfmf", "WPF를"), ("TLSfmf", "TLS를"), ("RHELdptj", "RHEL에서")] {
+            XCTAssertEqual(engine(raw).text, expected, raw)
+        }
+    }
+
+    func testShiftedKoreanDoesNotOverrideLearnedLatinSpelling() {
+        var value = CompositionEngine()
+        value.words = [LearnedWord(raw: "toRL", text: "toRL", confirmations: 3)]
+        type("toRL", into: &value)
+        XCTAssertEqual(value.text, "toRL")
+        XCTAssertTrue(value.isRemembered)
+
+        value = CompositionEngine()
+        value.words = [LearnedWord(raw: "TJ", text: "TJ", confirmations: 3)]
+        type("TJqhfrp", into: &value)
+        XCTAssertEqual(value.text, "TJ볼게")
+    }
+
     func testLowercaseAbbreviationAndParticle() {
         XCTAssertEqual(engine("apifh").text, "api로",
                        "front=\(StatisticalModel.shared.englishEvidence("api")) whole=\(StatisticalModel.shared.englishEvidence("apifh"))")
