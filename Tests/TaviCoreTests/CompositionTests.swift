@@ -178,6 +178,20 @@ final class CompositionTests: XCTestCase {
         XCTAssertEqual(engine.raw.count, 64)
     }
 
+    func testSplitNeverBreaksASyllable() {
+        // A vowel key after the head joins its last syllable, so ㄷㅗ + ㅣ is 되, never 도ㅣ.
+        for learned in [[], [LearnedWord(raw: "eh", text: "도", confirmations: 3)]] {
+            for (raw, text) in [("ehldjrkwlrh", "되어가지고"), ("ehldjdlTdjdi", "되어있어야"), ("ehlsmsrjwl", "되는거지"),
+                                ("ehldj", "되어"), ("ehdhkwntpdy", "도와주세요")] {
+                var result = CompositionEngine()
+                result.words = learned
+                type(raw, into: &result)
+                XCTAssertEqual(result.text, text, raw)
+                XCTAssertFalse(result.candidates.contains { $0.text.contains("ㅣ") }, raw)
+            }
+        }
+    }
+
     private func engine(_ raw: String) -> CompositionEngine {
         var result = CompositionEngine()
         type(raw, into: &result)

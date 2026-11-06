@@ -129,7 +129,7 @@ struct Lexicon {
                     && !Self.model.isKnownKorean(hangul)
                     && headEnglishScore >= 2.8
                 let englishHead = trustedHead || plausibleNewName
-                if englishHead, allowsSplit {
+                if englishHead, allowsSplit, Self.startsSyllable(tail) {
                     let tailHangul = Hangul.compose(tail)
                     let spelling = learnedHead?.text ?? head
                     if Self.suffixes.contains(tailHangul) {
@@ -175,6 +175,14 @@ struct Lexicon {
         return zip(ordered, weights).map { item, weight in
             Candidate(text: item.text, reason: item.reason, confidence: total > 0 ? weight / total : 0)
         }
+    }
+
+    /// Korean after a head starts on a consonant key. A vowel key would join the head's last
+    /// syllable (eh + ldj is 되어), so splitting there breaks a syllable in two (도ㅣ어가지고).
+    private static func startsSyllable(_ tail: String) -> Bool {
+        guard let first = tail.first else { return false }
+        let key = Hangul.mapping[first] != nil ? first : Character(String(first).lowercased())
+        return Hangul.mapping[key].map { Hangul.initials.contains($0) } ?? false
     }
 
     private static func learned(
