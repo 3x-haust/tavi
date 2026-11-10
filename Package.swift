@@ -18,6 +18,7 @@ let package = Package(
             ]
         ),
         .testTarget(name: "TaviCoreTests", dependencies: ["TaviCore"]),
+        .testTarget(name: "TaviTests", dependencies: ["Tavi"]),
     ],
     swiftLanguageModes: [.v5]
 )

@@ -24,8 +24,10 @@ Input Monitoring permission.
    input method. Ghostty encodes a key with the text committed during it as one or
    the other, so there the return is inserted as text after the word, and Tab,
    arrows and shortcuts commit the word after the key is consumed (press again).
-   With no text field (selectedRange not found, as in Finder's file list) keys pass
-   through without composing, so type-select works.
+   With no text field (neither a valid selectedRange nor a non-empty insertion-point
+   rectangle at index 0, as in Finder's file list) keys pass through without
+   composing, so type-select works. A missing selectedRange alone does not prevent
+   composition when the client still reports an insertion point.
 5. Backspace removes a raw key and recomposes; with no active raw keys it passes
    through. Escape commits the composition without learning and passes on, like Enter.
 6. Shortcuts and navigation finish composition without learning and pass through.

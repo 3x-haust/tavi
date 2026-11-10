@@ -7,7 +7,8 @@ import TaviCore
 @objc(TaviInputController)
 final class TaviInputController: IMKInputController {
     private var session = InputSession()
-    private let runtime = InputMethodRuntime.shared
+    private lazy var runtime = InputMethodRuntime.shared
+    private var secureInput: (IMKTextInput) -> Bool = TaviInputController.isSecureInput
     private let replacement = NSRange(location: NSNotFound, length: NSNotFound)
 
     private var active = false
@@ -21,6 +22,14 @@ final class TaviInputController: IMKInputController {
     /// A Caps Lock that toggled here may also switch the source; that is the same press.
     private var capsToggle = Date.distantPast
     private static let log = Logger(subsystem: "dev.3xhaust.inputmethod.tavi", category: "language-key")
+
+    convenience init?(
+        runtime: InputMethodRuntime, secureInput: @escaping (IMKTextInput) -> Bool
+    ) {
+        self.init(server: nil, delegate: nil, client: nil)
+        self.runtime = runtime
+        self.secureInput = secureInput
+    }
 
     override func activateServer(_ sender: Any!) {
         guard let client = sender as? IMKTextInput else { return }
@@ -159,7 +168,7 @@ final class TaviInputController: IMKInputController {
         }
         guard event.type == .keyDown else { return false }
         keystrokes += 1
-        guard runtime.enabled, !Self.isSecureInput(in: client) else {
+        guard runtime.enabled, !secureInput(client) else {
             _ = apply(session.finish(learn: false), to: client)
             return false
         }
@@ -187,8 +196,8 @@ final class TaviInputController: IMKInputController {
             }
         }
         // Without a text field (Finder's file list, a table) keys keep their own meaning, such as type-select.
-        if session.raw.isEmpty, case .text = key, client.selectedRange().location == NSNotFound {
-            Self.log.notice("no text field in \(client.bundleIdentifier() ?? "?", privacy: .public)")
+        if session.raw.isEmpty, case .text = key, !Self.hasTextField(client) {
+            Self.log.notice("no selection or caret in \(client.bundleIdentifier() ?? "?", privacy: .public)")
             return false
         }
         let update = session.handle(key)
@@ -210,6 +219,16 @@ final class TaviInputController: IMKInputController {
             }
         }
         return apply(update, to: client)
+    }
+
+    private static func hasTextField(_ client: IMKTextInput) -> Bool {
+        if client.selectedRange().location != NSNotFound { return true }
+        // NSNotFound can mean document access is unavailable, not that there is no editor.
+        // Without an inline session, index 0 asks for the current selection's line rectangle.
+        var caret = NSRect.zero
+        _ = client.attributes(forCharacterIndex: 0, lineHeightRectangle: &caret)
+        // A horizontal caret can have zero width; a vertical one can have zero height.
+        return caret.width > 0 || caret.height > 0
     }
 
     /// A password prompt that turned on Secure Event Input, as Ghostty does for `sudo`: its keys
