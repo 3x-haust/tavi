@@ -10,14 +10,15 @@ final class InputMethodRuntime {
     private static let externalChange = Notification.Name("dev.3xhaust.tavi.shared-state-changed")
     private let processID = String(ProcessInfo.processInfo.processIdentifier)
     private var observer: NSObjectProtocol?
+    private let preferences: UserDefaults
     let store: LearningStore?
     private(set) var error: String?
 
     var enabled: Bool {
-        get { Self.preferences.object(forKey: "compositionEnabled") as? Bool ?? true }
+        get { preferences.object(forKey: "compositionEnabled") as? Bool ?? true }
         set {
             let changed = newValue != enabled
-            Self.preferences.set(newValue, forKey: "compositionEnabled")
+            preferences.set(newValue, forKey: "compositionEnabled")
             notify()
             guard changed else { return }
             // Off hands typing back to the user's previous source; on brings Tavi back.
@@ -33,14 +34,20 @@ final class InputMethodRuntime {
     }
 
     var learning: Bool {
-        get { Self.preferences.object(forKey: "learning") as? Bool ?? true }
+        get { preferences.object(forKey: "learning") as? Bool ?? true }
         set {
-            Self.preferences.set(newValue, forKey: "learning")
+            preferences.set(newValue, forKey: "learning")
             notify()
         }
     }
 
+    init(store: LearningStore, preferences: UserDefaults) {
+        self.store = store
+        self.preferences = preferences
+    }
+
     private init() {
+        preferences = Self.preferences
         do { store = try LearningStore() }
         catch {
             store = nil
