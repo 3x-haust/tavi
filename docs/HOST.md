@@ -61,7 +61,8 @@ There is no AX text replacement, synthetic Backspace, clipboard substitution,
 event tap, or whole-document read. Tavi does not reinterpret pasted text.
 It cannot revise arbitrary text already committed to a terminal.
 
-URL/path syntax keeps the remainder of the token literal. Composition is
+URL/path syntax keeps the remainder of the token literal. A slash that starts a
+word (a chat command) does not: the word after it is read and toggled as usual. Composition is
 bounded to 64 raw keys; reaching the bound commits literal input rather than
 dropping subsequent characters. The immutable statistical model is shared.
 
