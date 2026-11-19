@@ -233,12 +233,43 @@ final class InputSessionTests: XCTestCase {
         XCTAssertEqual(session.handle(.space), .pass)
     }
 
-    func testLeadingPathSyntaxKeepsRestOfTokenLiteral() {
+    func testLeadingSlashLeavesNextWordToReading() {
         var session = InputSession()
         XCTAssertEqual(session.handle(.text("/")), .pass)
-        for key in "dkssud" {
-            XCTAssertEqual(session.handle(.text(String(key))), .pass)
+        for key in "dlfjgrpeho" { _ = session.handle(.text(String(key))) }
+        XCTAssertEqual(session.text, "이렇게돼")
+        guard case .commit("이렇게돼 ", consumesEvent: true, _) = session.handle(.space) else {
+            return XCTFail("A word after a leading slash commits its reading")
         }
+        XCTAssertEqual(session.handle(.text("/")), .pass)
+        for key in "remind" { _ = session.handle(.text(String(key))) }
+        XCTAssertEqual(session.text, "remind")
+    }
+
+    func testLanguageKeyWorksAfterLeadingSlash() {
+        var session = InputSession()
+        XCTAssertEqual(session.handle(.text("/")), .pass)
+        session.toggleNextLanguage(fallback: .korean)
+        for key in "gksrmf" { _ = session.handle(.text(String(key))) }
+        XCTAssertEqual(session.text, "한글")
+        _ = session.finish(learn: false)
+        XCTAssertEqual(session.handle(.text("/")), .pass)
+        for key in "dkssud" { _ = session.handle(.text(String(key))) }
+        XCTAssertEqual(session.toggleLanguage(), .mark("dkssud"))
+        XCTAssertEqual(session.toggleLanguage(), .mark("안녕"))
+    }
+
+    func testPathKeepsRestOfTokenLiteralAfterSecondSlash() {
+        var session = InputSession()
+        var result = ""
+        for key in "/usr/dkssud" {
+            switch session.handle(.text(String(key))) {
+            case .commit(let value, _, _): result += value
+            case .pass: result += String(key)
+            case .mark: break
+            }
+        }
+        XCTAssertEqual(result, "/usr/dkssud")
         XCTAssertEqual(session.handle(.space), .pass)
         for key in "dkssud" { _ = session.handle(.text(String(key))) }
         XCTAssertEqual(session.text, "안녕")

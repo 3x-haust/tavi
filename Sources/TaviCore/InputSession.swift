@@ -61,6 +61,10 @@ public struct InputSession {
             guard key.count == 1,
                   key.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber) }) else {
                 if ":/@\\_`.".contains(key), !key.isEmpty, text.allSatisfy(\.isASCII) {
+                    // A slash that starts a word (a chat command, /이렇게) leaves the word
+                    // after it to the usual reading and the language key; a path's later
+                    // slashes keep the rest of the token literal.
+                    if key == "/", raw.isEmpty { return .pass }
                     if !raw.isEmpty { engine.choose(raw) }
                     literalUntilBoundary = true
                     return commit(suffix: key, consumesEvent: true, learn: false)
