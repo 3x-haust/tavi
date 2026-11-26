@@ -51,10 +51,11 @@ Input Monitoring permission.
 
 While the client's own process holds Secure Event Input (a terminal password prompt,
 such as Ghostty's `macos-auto-secure-input` for `sudo`), keys pass through without
-composing, so a password is neither converted nor shown as marked text. Secure input
-held by another app does not affect other clients. A terminal that does not turn
-secure input on gives an input method no way to tell a password prompt from a
-command line; there Tavi composes as usual.
+composing, so a password is neither converted nor shown as marked text. macOS does not
+record which process holds secure input, only the app that was in front when it turned
+on; Tavi passes keys through in that app and composes in every other client. A
+terminal that does not turn secure input on gives an input method no way to tell a
+password prompt from a command line; there Tavi composes as usual.
 
 Only native IMK marked-text and insertion methods modify the client.
 There is no AX text replacement, synthetic Backspace, clipboard substitution,

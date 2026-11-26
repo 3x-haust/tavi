@@ -1,6 +1,7 @@
 import AppKit
 import Carbon
 import InputMethodKit
+import IOKit
 import OSLog
 import TaviCore
 
@@ -236,10 +237,22 @@ final class TaviInputController: IMKInputController {
     /// Secure input another app left on does not stop Tavi elsewhere; an unknown owner counts.
     private static func isSecureInput(in client: IMKTextInput) -> Bool {
         guard IsSecureEventInputEnabled() else { return false }
-        guard let session = CGSessionCopyCurrentDictionary() as? [String: Any],
-              let pid = session["kCGSSessionSecureInputPID"] as? pid_t,
+        guard let pid = secureInputPID(),
               let owner = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier else { return true }
         return owner == client.bundleIdentifier()
+    }
+
+    /// The app that was in front when secure input turned on, as the console session records it.
+    /// `CGSessionCopyCurrentDictionary` reports the app in front now instead, which is every client.
+    private static func secureInputPID() -> pid_t? {
+        let root = IORegistryGetRootEntry(kIOMainPortDefault)
+        guard let users = IORegistryEntryCreateCFProperty(
+            root, "IOConsoleUsers" as CFString, kCFAllocatorDefault, 0
+        )?.takeRetainedValue() as? [[String: Any]] else { return nil }
+        let session = users.first {
+            $0["kCGSSessionUserIDKey"] as? uid_t == getuid() && $0["kCGSSessionOnConsoleKey"] as? Bool == true
+        }
+        return session?["kCGSSessionSecureInputPID"] as? pid_t
     }
 
     /// Whether the client still shows a marked word; one it committed on its own reports none.
